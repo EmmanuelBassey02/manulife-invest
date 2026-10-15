@@ -105,6 +105,7 @@ function publicLayout(content, path) {
           ? `<a class="btn btn--gold" href="${homeFor(state.user)}">Go to dashboard</a>`
           : '<a class="btn btn--outline-light" href="/login">Login</a><a class="btn btn--gold" href="/register">Start Investing</a>'}</div>
       </nav>
+      <div class="site-nav-scrim" data-nav-close></div>
       <button class="icon-btn site-head__toggle" aria-expanded="false" aria-controls="site-nav" data-nav-toggle aria-label="Open menu">${icon('menu')}</button>
     </div>
   </header>
@@ -229,6 +230,7 @@ export async function render() {
   const kind = match.layout;
   const wrapIn = (html) => (kind === 'public' ? publicLayout(html, path) : kind === 'auth' ? authLayout(html) : appLayout(html, path, kind));
   const sameShell = root.dataset.layout === kind && kind !== 'public' && kind !== 'auth' && root.querySelector('#main');
+  closeMobileNavigation();
   if (sameShell) {
     root.querySelector('#main').innerHTML = loading;
     root.querySelectorAll('.side-nav__link').forEach((a) => {
@@ -238,7 +240,6 @@ export async function render() {
       const cur = isRoot ? path === href : path === href || path.startsWith(href + '/');
       if (cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.body.classList.remove('side-open');
   } else {
     root.innerHTML = wrapIn(loading);
     root.dataset.layout = kind;
@@ -281,11 +282,15 @@ export async function render() {
 function bindShell(root) {
   root.querySelector('[data-nav-toggle]')?.addEventListener('click', (e) => {
     const open = document.body.classList.toggle('nav-open');
-    e.currentTarget.setAttribute('aria-expanded', String(open));
+    setNavigationToggle(e.currentTarget, open);
   });
+  root.querySelector('[data-nav-close]')?.addEventListener('click', closeMobileNavigation);
   root.querySelectorAll('[data-logout]').forEach((b) => b.addEventListener('click', logout));
-  root.querySelector('[data-side-open]')?.addEventListener('click', () => document.body.classList.add('side-open'));
-  root.querySelector('[data-side-close]')?.addEventListener('click', () => document.body.classList.remove('side-open'));
+  root.querySelector('[data-side-open]')?.addEventListener('click', (e) => {
+    const open = document.body.classList.toggle('side-open');
+    setNavigationToggle(e.currentTarget, open);
+  });
+  root.querySelector('[data-side-close]')?.addEventListener('click', closeMobileNavigation);
   const menuBtn = root.querySelector('[data-menu]');
   if (menuBtn) {
     const pop = menuBtn.nextElementSibling;
@@ -303,6 +308,18 @@ function bindShell(root) {
   });
 }
 
+function setNavigationToggle(button, open) {
+  if (!button) return;
+  button.innerHTML = icon(open ? 'x' : 'menu');
+  button.setAttribute('aria-expanded', String(open));
+  button.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+}
+
+function closeMobileNavigation() {
+  document.body.classList.remove('nav-open', 'side-open');
+  document.querySelectorAll('[data-nav-toggle], [data-side-open]').forEach((button) => setNavigationToggle(button, false));
+}
+
 /* --------------------------------------------------------------------- boot */
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[href]');
@@ -310,7 +327,7 @@ document.addEventListener('click', (e) => {
   const href = a.getAttribute('href');
   if (!href || !href.startsWith('/') || href.startsWith('//') || href.startsWith('/api/') || a.target || a.hasAttribute('download') || a.dataset.native !== undefined) return;
   e.preventDefault();
-  document.body.classList.remove('nav-open', 'side-open');
+  closeMobileNavigation();
   const target = new URL(href, location.origin);
   if (target.pathname === location.pathname && target.search === location.search && target.hash) {
     document.getElementById(target.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' });
@@ -318,7 +335,7 @@ document.addEventListener('click', (e) => {
   }
   navigate(href);
 });
-window.addEventListener('popstate', () => render());
+window.addEventListener('popstate', () => { closeMobileNavigation(); render(); });
 
 document.addEventListener('click', (e) => {
   const option = e.target.closest('[data-language-option]');
@@ -349,6 +366,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
+  closeMobileNavigation();
   document.querySelectorAll('.language-picker__menu').forEach((menu) => { menu.hidden = true; });
   document.querySelectorAll('[data-language-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
 });
