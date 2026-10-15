@@ -148,7 +148,7 @@ function register(r) {
       }
       if (!allowed) throw new HttpError(403, 'You do not have access to this file.');
     }
-    const buf = readUpload(f);
+    const buf = await readUpload(f);
     if (!buf) throw NotFound('File');
     const disp = ctx.query.download === '1' ? 'attachment' : 'inline';
     return new Raw(buf, f.mime, {

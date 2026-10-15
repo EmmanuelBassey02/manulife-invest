@@ -818,9 +818,9 @@ button { font: inherit; color: inherit; }
   body { font-size: 15px; }
   .hero { min-height: auto; }
   .hero__in { padding-top: 120px; padding-bottom: 36px; }
-  .hero__shade { background: linear-gradient(0deg, rgba(8, 18, 30, .95) 15%, rgba(8, 18, 30, .55) 70%, rgba(8, 18, 30, .35)); }
+  .hero__shade { background: linear-gradient(0deg, rgba(4, 9, 17, .98) 0%, rgba(4, 9, 17, .82) 65%, rgba(4, 9, 17, .65) 100%); }
   .hero__feats { gap: 18px; }
-  .hero__feats li, .hero__feats li:first-child { padding: 0; border: 0; width: calc(50% - 9px); }
+  .hero__feats li, .hero__feats li:first-child { padding: 0; border: 0; width: 100%; }
   .hero__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; }
   .hero__stats div:nth-child(odd) { border-left: 0; }
   .hero__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 44px; gap: 20px; }

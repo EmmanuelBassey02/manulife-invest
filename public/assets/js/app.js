@@ -267,7 +267,7 @@ export async function render() {
   if (view.mount) {
     try { await view.mount(main, ctx); } catch (e) { console.error(e); toast(e.message || 'Something went wrong.', 'bad'); }
   }
-  applyLanguage(root, kind !== 'admin');
+  applyLanguage(root);
   if (!location.hash) window.scrollTo(0, 0);
   if (view.live) {
     liveTimer = setInterval(() => {

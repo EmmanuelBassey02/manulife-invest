@@ -148,6 +148,11 @@ export function applyLanguage(root, enabled = true) {
   }
   if (lang === 'en') return;
   collect(root);
+  const title = document.querySelector('title');
+  if (title && !queuedText.has(title)) {
+    queuedText.add(title);
+    pending.add({ node: title, read: () => title.textContent, write: (value) => { title.textContent = value; } });
+  }
   schedule(root, lang, languageRun);
   observer = new MutationObserver((records) => {
     for (const record of records) for (const node of record.addedNodes) {

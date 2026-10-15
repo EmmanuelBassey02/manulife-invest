@@ -55,6 +55,19 @@ CREATE TABLE IF NOT EXISTS files (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS upload_tokens (
+  upload_id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  purpose TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  pathname TEXT UNIQUE,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS kyc_submissions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),

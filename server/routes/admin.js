@@ -579,7 +579,7 @@ function register(r) {
       b.user_id = inv.user_id;
     }
     if (b.user_id && !(await db.get("SELECT id FROM users WHERE id=? AND role='investor'", [b.user_id]))) throw new HttpError(422, 'Check the highlighted fields.', { user_id: 'That investor does not exist.' });
-    const f = await S.saveUpload(b.file, b.user_id || ctx.user.id, 'investor_document', 'private');
+    const f = await S.saveUpload(b.file, b.user_id || ctx.user.id, 'investor_document', 'private', undefined, ctx.user.id);
     const id = await insert(db, 'documents', { user_id: b.user_id || null, investment_id: b.investment_id || null, category: b.category, title: b.title, file_id: f.id, created_by: ctx.user.id, created_at: now() });
     await S.audit(ctx, 'document.issue', 'document', id, null, { title: b.title, user_id: b.user_id || 'all investors' });
     if (b.user_id) await S.notify(b.user_id, { type: 'document', title: 'New document available', body: `${b.title} has been added to your documents.`, link: '/app/documents' });

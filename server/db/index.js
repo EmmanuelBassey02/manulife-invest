@@ -7,11 +7,11 @@ function clean(params) {
   return (params || []).map((v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v));
 }
 
-function makeSqlite() {
+async function makeSqlite() {
   // Silence the one-time ExperimentalWarning for node:sqlite only.
   const emit = process.emitWarning;
   process.emitWarning = (w, ...a) => (String(w).includes('SQLite') ? undefined : emit.call(process, w, ...a));
-  const { DatabaseSync } = require('node:sqlite');
+  const { DatabaseSync } = await import('node:sqlite');
   process.emitWarning = emit;
   if (config.SQLITE_PATH !== ':memory:') fs.mkdirSync(path.dirname(config.SQLITE_PATH), { recursive: true });
   const db = new DatabaseSync(config.SQLITE_PATH);
@@ -73,7 +73,7 @@ function makePg() {
 }
 
 function schemaFor(kind) {
-  const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(config.root, 'server', 'db', 'schema.sql'), 'utf8');
   if (kind !== 'pg') return sql;
   return sql.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY').replace(/\bREAL\b/g, 'DOUBLE PRECISION');
 }
@@ -81,7 +81,10 @@ function schemaFor(kind) {
 const db = {
   driver: null,
   async init() {
-    this.driver = /^postgres(ql)?:\/\//.test(config.DATABASE_URL) ? makePg() : makeSqlite();
+    if (config.isVercel && !config.DATABASE_URL) {
+      throw new Error('Vercel deployments require a persistent PostgreSQL DATABASE_URL. SQLite is not supported.');
+    }
+    this.driver = /^postgres(ql)?:\/\//.test(config.DATABASE_URL) ? makePg() : await makeSqlite();
     await this.driver.exec(schemaFor(this.driver.kind));
   },
   get kind() { return this.driver.kind; },

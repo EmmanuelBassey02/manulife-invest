@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, DEV_LABEL,
-  duration, empty, readFile, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText,
+  duration, empty, uploadFile, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { bars } from '../charts.js';
@@ -136,7 +136,7 @@ function issueDocModal({ userId = null, investments = [], investors = null }, do
       const form = panel.querySelector('[data-f]');
       bindForm(form, async (d) => {
         let file;
-        try { file = await readFile(form.querySelector('#docfile').files[0]); } catch (e) { throw { fields: {}, message: e.message }; }
+        try { file = await uploadFile(form.querySelector('#docfile').files[0], { purpose: 'investor_document' }); } catch (e) { throw { fields: {}, message: e.message }; }
         await api.post('/api/admin/documents', { ...d, user_id: d.user_id ? Number(d.user_id) : null, investment_id: d.investment_id ? Number(d.investment_id) : null, file });
         close(); toast('Document issued.'); done();
       });
@@ -432,7 +432,7 @@ export async function propertyEdit(ctx) {
         else { await api.put(`/api/admin/properties/${p.id}`, body); toast('Changes saved.'); ctx.reload(); }
       });
       root.querySelector('[data-img]')?.addEventListener('change', async (e) => {
-        try { const file = await readFile(e.target.files[0], { types: ['image/jpeg', 'image/png', 'image/webp'] }); await api.post(`/api/admin/properties/${p.id}/images`, { file }); toast('Image uploaded.'); ctx.reload(); }
+        try { const file = await uploadFile(e.target.files[0], { types: ['image/jpeg', 'image/png', 'image/webp'], purpose: 'property_image' }); await api.post(`/api/admin/properties/${p.id}/images`, { file }); toast('Image uploaded.'); ctx.reload(); }
         catch (err) { toast(err.message, 'bad'); }
       });
       root.querySelectorAll('[data-rmimg]').forEach((b) => b.addEventListener('click', async () => {
@@ -452,7 +452,7 @@ export async function propertyEdit(ctx) {
           const f = panel.querySelector('[data-df]');
           bindForm(f, async (v) => {
             let file;
-            try { file = await readFile(f.querySelector('#pdoc').files[0]); } catch (e) { throw { fields: {}, message: e.message }; }
+            try { file = await uploadFile(f.querySelector('#pdoc').files[0], { purpose: 'property_document' }); } catch (e) { throw { fields: {}, message: e.message }; }
             await api.post(`/api/admin/properties/${p.id}/documents`, { ...v, file }); close(); toast('Document added.'); ctx.reload();
           });
         },

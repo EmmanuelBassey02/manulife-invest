@@ -4,14 +4,26 @@
   "private": true,
   "description": "Real estate investment & investor management platform with crypto payments",
   "main": "server/index.js",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "next start",
+    "dev": "next dev",
+    "build": "next build",
+    "legacy:start": "node server/index.js",
+    "legacy:dev": "node --watch server/index.js",
+    "migrate:vercel": "node scripts/migrate-vercel.js",
+    "catalogs:generate": "node scripts/generate-next-intl-catalogs.js",
     "reset-db": "node scripts/reset-db.js",
     "schema:pg": "node scripts/export-pg-schema.js"
   },
-  "optionalDependencies": {
-    "pg": "^8.13.0"
+  "dependencies": {
+    "@vercel/blob": "^2.8.2",
+    "next": "^16.4.1",
+    "next-intl": "^4.14.9",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

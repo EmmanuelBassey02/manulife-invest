@@ -131,16 +131,66 @@ const ALLOWED = {
 };
 const MAX_UPLOAD = 10 * 1024 * 1024;
 
-async function saveUpload({ data, name, mime }, ownerId, kind, visibility = 'private', allowed = Object.keys(ALLOWED)) {
-  if (typeof data !== 'string' || !data) throw new HttpError(422, 'Choose a file to upload.');
+async function readStoredUpload(stored) {
+  if (config.isVercel) {
+    const { get } = await import('@vercel/blob');
+    const result = await get(stored, { access: 'private', useCache: false });
+    return result?.statusCode === 200 ? Buffer.from(await new Response(result.stream).arrayBuffer()) : null;
+  }
+  const filePath = path.join(config.UPLOAD_DIR, path.basename(stored));
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
+}
+
+async function writeStoredUpload(stored, buf, mime) {
+  if (config.isVercel) {
+    const { put } = await import('@vercel/blob');
+    const result = await put(stored, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: mime });
+    return result.pathname;
+  }
+  fs.mkdirSync(config.UPLOAD_DIR, { recursive: true });
+  fs.writeFileSync(path.join(config.UPLOAD_DIR, path.basename(stored)), buf, { mode: 0o600 });
+  return stored;
+}
+
+async function findUploadToken(pathname, uploaderId, kind) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const token = await db.get('SELECT * FROM upload_tokens WHERE pathname=? AND user_id=? AND purpose=? AND used_at IS NULL AND expires_at>?', [pathname, uploaderId, kind, now()]);
+    if (token) return token;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return null;
+}
+
+async function saveUpload(file, ownerId, kind, visibility = 'private', allowed = Object.keys(ALLOWED), uploaderId = ownerId) {
+  const input = file || {};
+  let { data, name, mime } = input;
+  let buf;
+  let stored;
+  let uploadToken;
+  if (typeof input.pathname === 'string' && input.pathname && config.isVercel) {
+    uploadToken = await findUploadToken(input.pathname, uploaderId, kind);
+    const safeInputName = String(input.name || 'file').replace(/[^\w.\- ]/g, '_').slice(0, 120);
+    if (!uploadToken || uploadToken.original_name !== safeInputName || uploadToken.mime !== input.mime || Number(uploadToken.size) !== Number(input.size)) {
+      throw new HttpError(403, 'This uploaded file is not authorized for this account or action.');
+    }
+    name = uploadToken.original_name;
+    mime = uploadToken.mime;
+    stored = uploadToken.pathname;
+    buf = await readStoredUpload(stored);
+  } else if (typeof data === 'string' && data) {
+    buf = Buffer.from(data.replace(/^data:[^,]+,/, ''), 'base64');
+  } else {
+    throw new HttpError(422, 'Choose a file to upload.');
+  }
+  if (!buf) throw new HttpError(404, 'Uploaded file was not found.');
+  if (uploadToken && buf.length !== Number(uploadToken.size)) throw new HttpError(422, 'Uploaded file size does not match its authorization.');
   if (!allowed.includes(mime) || !ALLOWED[mime]) throw new HttpError(422, `Upload a ${allowed.map((m) => m.split('/')[1].toUpperCase()).join(', ')} file.`);
-  const buf = Buffer.from(data.replace(/^data:[^,]+,/, ''), 'base64');
   if (!buf.length) throw new HttpError(422, 'The file is empty.');
   if (buf.length > MAX_UPLOAD) throw new HttpError(413, 'Files must be 10 MB or smaller.');
   if (!ALLOWED[mime](buf)) throw new HttpError(422, 'The file content does not match its type. Upload a real JPG, PNG, WEBP or PDF.');
-  fs.mkdirSync(config.UPLOAD_DIR, { recursive: true });
-  const stored = crypto.randomBytes(20).toString('hex');
-  fs.writeFileSync(path.join(config.UPLOAD_DIR, stored), buf, { mode: 0o600 });
+  if (!stored) stored = config.isVercel ? `files/${crypto.randomBytes(20).toString('hex')}` : crypto.randomBytes(20).toString('hex');
+  if (!uploadToken) stored = await writeStoredUpload(stored, buf, mime);
+  if (uploadToken) await db.run('UPDATE upload_tokens SET used_at=? WHERE upload_id=? AND used_at IS NULL', [now(), uploadToken.upload_id]);
   const safeName = String(name || 'file').replace(/[^\w.\- ]/g, '_').slice(0, 120);
   const id = await insert(db, 'files', {
     owner_id: ownerId || null, kind, original_name: safeName, stored_name: stored, mime, size: buf.length,
@@ -149,10 +199,7 @@ async function saveUpload({ data, name, mime }, ownerId, kind, visibility = 'pri
   return { id, name: safeName, mime, size: buf.length, url: `/api/files/${id}` };
 }
 
-function readUpload(file) {
-  const p = path.join(config.UPLOAD_DIR, path.basename(file.stored_name));
-  return fs.existsSync(p) ? fs.readFileSync(p) : null;
-}
+function readUpload(file) { return readStoredUpload(file.stored_name); }
 
 /* ----------------------------------------------------------------------- csv */
 

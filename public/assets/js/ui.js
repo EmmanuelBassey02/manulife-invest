@@ -280,6 +280,17 @@ export function readFile(file, { maxMB = 10, types } = {}) {
     r.readAsDataURL(file);
   });
 }
+
+export async function uploadFile(file, { maxMB = 10, types, purpose } = {}) {
+  if (!file) throw new Error('Choose a file to upload.');
+  if (types && !types.includes(file.type)) throw new Error(`Upload a ${types.map((t) => t.split('/')[1].toUpperCase()).join(', ')} file.`);
+  if (file.size > maxMB * 1024 * 1024) throw new Error(`Files must be ${maxMB} MB or smaller.`);
+  if (document.documentElement.dataset.uploadMode === 'blob') {
+    if (typeof window.eiBlobUpload !== 'function') throw new Error('Secure upload is still initializing. Refresh the page and try again.');
+    return window.eiBlobUpload(file, purpose);
+  }
+  return readFile(file, { maxMB, types });
+}
 export const fileSize = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 /* ---------------------------------------------------------------- markdown */

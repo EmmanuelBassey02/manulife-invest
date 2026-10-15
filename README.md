@@ -72,23 +72,36 @@ These match PRD sections 14 and 18 and must come from the company:
 
 ## Deployment
 
-The app is a single Node.js process. Any VPS or platform that runs Node 22 works (DigitalOcean, AWS Lightsail, Render, Railway, Hetzner, etc.).
+The frontend runs on Next.js 16. The existing Node API router and business logic are exposed through a Next.js route handler. SQLite and local uploads remain available for development; Vercel requires PostgreSQL and a private Vercel Blob store.
 
-**Option A — VPS with PM2 + Nginx (recommended)**
+**Option A - Vercel**
+
+Use the default Next.js build (`npm run build`). Configure these environment variables in Vercel Project Settings:
+
+- `DATABASE_URL`: managed PostgreSQL connection string.
+- `BLOB_READ_WRITE_TOKEN`: connect a private Vercel Blob store to the project.
+- `CRON_SECRET`: long random secret for the protected `/api/cron/tick` endpoint.
+- Set production `APP_URL`, `NODE_ENV`, and mail settings; set a public `LIBRETRANSLATE_URL` if translations are enabled.
+
+Vercel Hobby cron jobs run at most daily. To preserve one-minute payment expiry and investment maturity checks, configure an external scheduler to request `GET https://your-domain/api/cron/tick` every minute with `Authorization: Bearer <CRON_SECRET>`.
+
+To migrate existing local data, back up `data/` first. Connect a private Blob store, set `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, and `SOURCE_SQLITE_PATH` in your local shell, then run `npm run migrate:vercel`. The script refuses populated Postgres tables and leaves the SQLite database and source uploads untouched. Review its imported row counts and verify representative files before switching production traffic. Do not run the import again into a populated database.
+
+**Option B - VPS with PM2 + Nginx**
 ```bash
 npm install -g pm2
-NODE_ENV=production pm2 start server/index.js --name estateinvest
+NODE_ENV=production pm2 start npm --name estateinvest -- start
 pm2 save && pm2 startup
 ```
 Put Nginx (or Caddy, which handles HTTPS automatically) in front, proxying to port 3000, and set `TRUST_PROXY=1`. Back up the `data/` folder (database + uploaded documents) daily.
 
-**Option B — Docker**
+**Option C - Docker**
 ```bash
 docker build -t estateinvest .
-docker run -d -p 3000:3000 --env-file .env -v estateinvest-data:/app/data estateinvest
+docker run -d -p 3000:3000 --env-file .env estateinvest
 ```
 
-**PostgreSQL** (as specified in the PRD): `npm install pg`, set `DATABASE_URL=postgres://…` (and `PGSSL=1` for managed databases). Tables are created automatically on start; the schema is also in `server/db/schema.postgres.sql`. The SQLite default is ideal for development and small deployments; use PostgreSQL for production scale.
+Tables are created automatically on start; the PostgreSQL schema is in `server/db/schema.postgres.sql`. SQLite remains the local-development default.
 
 ---
 

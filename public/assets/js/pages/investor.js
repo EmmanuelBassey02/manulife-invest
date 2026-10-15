@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, duration,
-  empty, readFile, fileSize, copyText, shortHash, statusText, sentence,
+  empty, uploadFile, fileSize, copyText, shortHash, statusText, sentence,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { qrSvg } from '../qr.js';
@@ -478,7 +478,7 @@ export async function kyc(ctx) {
           status.innerHTML = '<span class="spinner spinner--sm"></span> Uploading…';
           drop.classList.add('is-busy');
           try {
-            const f = await readFile(file, { types: kind === 'selfie' ? IMG : IMG_PDF });
+            const f = await uploadFile(file, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` });
             const docType = root.querySelector('input[name=doc_type]:checked')?.value || (kind === 'selfie' ? 'selfie' : undefined);
             await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
             status.innerHTML = `${icon('check')} ${esc(file.name)} uploaded`;
