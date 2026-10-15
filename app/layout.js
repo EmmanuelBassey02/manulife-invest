@@ -5,6 +5,12 @@ export const metadata = {
   description: 'Invest in carefully structured real estate opportunities and track your portfolio from one secure platform.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-upload-mode={process.env.VERCEL === '1' ? 'blob' : 'inline'}>

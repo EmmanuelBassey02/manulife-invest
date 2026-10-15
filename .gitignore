@@ -5,3 +5,8 @@ next-env.d.ts
 data/
 .env
 *.log
+.neon
+.env.local
+
+.vercel
+.env*

@@ -37,7 +37,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; overflow-x: clip; }
 body { overflow-x: clip; margin: 0; font: 400 15px/1.6 var(--sans); color: var(--text); background: var(--surface); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 body.no-scroll { overflow: hidden; }
 body.nav-open, body.side-open { overflow: hidden; }
@@ -782,8 +782,8 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 1024px) {
   .site-head__toggle { display: inline-grid; }
-  .site-nav { position: fixed; inset: 0 0 0 auto; z-index: 1; width: min(340px, 86vw); height: 100vh; height: 100dvh; max-height: 100dvh; flex-direction: column; align-items: stretch; gap: 0; padding: calc(88px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom)); background: var(--ink); transform: translateX(100%); visibility: hidden; transition: transform .28s ease, visibility .28s; box-shadow: var(--shadow-lg); overflow-y: auto; overscroll-behavior: contain; }
-  .nav-open .site-nav { transform: none; visibility: visible; }
+  .site-nav { position: fixed; inset: 0 0 0 auto; z-index: 1; width: min(340px, 86vw); height: 100vh; height: 100dvh; max-height: 100dvh; flex-direction: column; align-items: stretch; gap: 0; padding: calc(88px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom)); background: var(--ink); clip-path: inset(0 0 0 100%); visibility: hidden; transition: clip-path .28s ease, visibility .28s; box-shadow: var(--shadow-lg); overflow-y: auto; overscroll-behavior: contain; }
+  .nav-open .site-nav { clip-path: inset(0); visibility: visible; }
   .site-nav > a { padding: 14px 8px; font-size: 1rem; border-bottom: 1px solid rgba(255, 255, 255, .08); border-radius: var(--r-sm); }
   .site-nav > a:hover, .site-nav > a:focus-visible { background: rgba(239, 171, 15, .14); transform: translateX(-3px); }
   .site-nav > a[aria-current] { box-shadow: inset 3px 0 0 var(--gold); padding-left: 14px; }
