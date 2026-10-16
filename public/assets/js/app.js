@@ -341,10 +341,23 @@ document.addEventListener('click', (e) => {
   const option = e.target.closest('[data-language-option]');
   if (option) {
     const next = option.dataset.languageOption;
-    if (!LANGUAGES.some(([code]) => code === next)) return;
-    resetTranslations(document.getElementById('app'));
+    const selected = LANGUAGES.find(([code]) => code === next);
+    if (!selected) return;
+    const root = document.getElementById('app');
+    resetTranslations(root);
     try { localStorage.setItem('ei_language', next); } catch { /* ignore */ }
-    render();
+    document.querySelectorAll('[data-language-picker]').forEach((picker) => {
+      const trigger = picker.querySelector('[data-language-toggle]');
+      const label = trigger.querySelector('span');
+      const flag = trigger.querySelector('.language-picker__flag');
+      label.textContent = selected[1];
+      flag.src = `/assets/img/flags/${selected[2].toLowerCase()}.svg`;
+      trigger.setAttribute('aria-label', `Choose language: ${selected[1]}`);
+      trigger.setAttribute('aria-expanded', 'false');
+      picker.querySelector('.language-picker__menu').hidden = true;
+      picker.querySelectorAll('[data-language-option]').forEach((item) => item.setAttribute('aria-selected', String(item.dataset.languageOption === next)));
+    });
+    applyLanguage(root);
     return;
   }
   const toggle = e.target.closest('[data-language-toggle]');

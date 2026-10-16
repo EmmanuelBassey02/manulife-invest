@@ -33,8 +33,32 @@ let queuedAttributes = new WeakMap();
 const originalText = new WeakMap();
 const originalAttributes = new WeakMap();
 const translationCache = new Map();
+const catalogLoads = new Map();
+const staticCatalogs = new Set();
 const BATCH_SIZE = 20;
 const CONCURRENT_BATCHES = 8;
+
+function loadCatalog(lang) {
+  if (!catalogLoads.has(lang)) {
+    const load = fetch(`/assets/i18n/${lang}.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load ${lang} translations.`);
+        return response.json();
+      })
+      .then((catalog) => {
+        staticCatalogs.add(lang);
+        for (const [text, translated] of Object.entries(catalog)) {
+          translationCache.set(`${lang}\0${text}`, translated);
+        }
+      })
+      .catch((error) => {
+        catalogLoads.delete(lang);
+        throw error;
+      });
+    catalogLoads.set(lang, load);
+  }
+  return catalogLoads.get(lang);
+}
 
 function addText(node) {
   if (!node || !node.nodeValue.trim() || queuedText.has(node) || node.parentElement?.closest('script,style,noscript,code,pre,textarea,[contenteditable="true"],[data-no-translate]')) return;
@@ -82,6 +106,8 @@ function schedule(root, lang, run = languageRun) {
   queueMicrotask(async () => {
     try {
       if (lang !== language() || languageRun !== run) return;
+      await loadCatalog(lang).catch(() => {});
+      if (lang !== language() || languageRun !== run) return;
       const jobs = [...pending].filter((job) => job.node.isConnected);
       pending.clear();
       const grouped = new Map();
@@ -91,6 +117,10 @@ function schedule(root, lang, run = languageRun) {
         const cached = translationCache.get(key);
         if (cached) {
           applyJob(job, original, cached);
+          continue;
+        }
+        if (staticCatalogs.has(lang)) {
+          applyJob(job, original, original);
           continue;
         }
         if (!grouped.has(original)) grouped.set(original, []);

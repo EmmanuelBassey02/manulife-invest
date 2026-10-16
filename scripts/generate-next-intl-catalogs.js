@@ -7,6 +7,7 @@ const allLocales = ['fr', 'es', 'pt', 'de'];
 const locales = process.env.LOCALES ? process.env.LOCALES.split(',').filter((code) => allLocales.includes(code)) : allLocales;
 const sourcePath = path.join(config.root, 'messages', 'catalog-source.json');
 const outputDir = path.join(config.root, 'messages');
+const publicCatalogDir = path.join(config.root, 'public', 'assets', 'i18n');
 const batchSize = 20;
 const concurrency = 1;
 
@@ -37,6 +38,7 @@ async function main() {
     }
   }
   fs.mkdirSync(outputDir, { recursive: true });
+  fs.mkdirSync(publicCatalogDir, { recursive: true });
   for (const locale of locales) {
     const translated = Array(source.length);
     const chunks = [];
@@ -53,6 +55,12 @@ async function main() {
   fs.writeFileSync(path.join(outputDir, 'keys.json'), JSON.stringify(keys, null, 2) + '\n');
   for (const [locale, messages] of Object.entries(catalogs)) {
     fs.writeFileSync(path.join(outputDir, `${locale}.json`), JSON.stringify(messages, null, 2) + '\n');
+  }
+  for (const locale of allLocales) {
+    const legacy = catalogs[locale]?.legacy;
+    if (!legacy) continue;
+    const dictionary = Object.fromEntries(source.map((text) => [text, legacy[keys[text]]]).filter(([, translated]) => typeof translated === 'string'));
+    fs.writeFileSync(path.join(publicCatalogDir, `${locale}.json`), JSON.stringify(dictionary) + '\n');
   }
   console.log(`Generated draft catalogs for ${Object.keys(catalogs).length} locales with ${source.length} messages.`);
 }
