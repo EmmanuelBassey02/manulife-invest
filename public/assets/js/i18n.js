@@ -1,9 +1,7 @@
 import { api } from './api.js';
 
 export const LANGUAGES = [
-  ['en', 'English', 'GB'], ['fr', 'French', 'FR'], ['es', 'Spanish', 'ES'], ['ar', 'Arabic', 'SA'], ['pt', 'Portuguese', 'PT'],
-  ['de', 'German', 'DE'], ['ga', 'Irish', 'IE'], ['hi', 'Hindi', 'IN'], ['it', 'Italian', 'IT'], ['ja', 'Japanese', 'JP'],
-  ['ko', 'Korean', 'KR'], ['ru', 'Russian', 'RU'], ['zh', 'Chinese (Simplified)', 'CN'],
+  ['en', 'English', 'GB'], ['fr', 'French', 'FR'], ['es', 'Spanish', 'ES'], ['pt', 'Portuguese', 'PT'], ['de', 'German', 'DE'],
 ];
 
 const flag = (country) => String.fromCodePoint(...country.split('').map((letter) => 127397 + letter.charCodeAt(0)));

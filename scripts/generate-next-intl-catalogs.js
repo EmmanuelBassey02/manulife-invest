@@ -3,11 +3,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const config = require('../server/config');
 
-const locales = ['fr', 'es', 'ar', 'pt', 'de', 'ga', 'hi', 'it', 'ja', 'ko', 'ru', 'zh'];
+const allLocales = ['fr', 'es', 'pt', 'de'];
+const locales = process.env.LOCALES ? process.env.LOCALES.split(',').filter((code) => allLocales.includes(code)) : allLocales;
 const sourcePath = path.join(config.root, 'messages', 'catalog-source.json');
 const outputDir = path.join(config.root, 'messages');
 const batchSize = 20;
-const concurrency = 3;
+const concurrency = 1;
 
 async function translate(locale, texts) {
   const response = await fetch(config.LIBRETRANSLATE_URL, {
@@ -30,6 +31,11 @@ async function main() {
   const keys = Object.fromEntries(source.map((text, index) => [text, `m${String(index + 1).padStart(4, '0')}`]));
   const english = Object.fromEntries(source.map((text) => [keys[text], text]));
   const catalogs = { en: { legacy: english } };
+  for (const locale of allLocales) {
+    if (!locales.includes(locale)) {
+      try { catalogs[locale] = JSON.parse(fs.readFileSync(path.join(outputDir, `${locale}.json`), 'utf8')); } catch {}
+    }
+  }
   fs.mkdirSync(outputDir, { recursive: true });
   for (const locale of locales) {
     const translated = Array(source.length);

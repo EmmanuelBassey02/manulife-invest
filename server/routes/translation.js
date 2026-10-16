@@ -1,9 +1,25 @@
 'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
 const config = require('../config');
 const { HttpError } = require('../lib/util');
 
-const LANGUAGES = new Set(['fr', 'es', 'ar', 'pt', 'de', 'ga', 'hi', 'it', 'ja', 'ko', 'ru', 'zh']);
+const LANGUAGES = new Set(['fr', 'es', 'pt', 'de']);
 const cache = new Map();
+const catalogs = new Map();
+
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(path.join(config.root, 'messages', file), 'utf8')); } catch { return null; }
+}
+
+// Pre-generated catalogs (scripts/generate-next-intl-catalogs.js) avoid needing a live LibreTranslate.
+function catalogLookup(target) {
+  if (!catalogs.has('keys')) catalogs.set('keys', readJson('keys.json') || {});
+  if (!catalogs.has(target)) catalogs.set(target, readJson(`${target}.json`)?.legacy || {});
+  const keys = catalogs.get('keys');
+  const messages = catalogs.get(target);
+  return (text) => messages[keys[text]];
+}
 
 function register(r) {
   r.post('/api/public/translate', async (ctx) => {
@@ -18,9 +34,13 @@ function register(r) {
     }
     const translations = Array(texts.length);
     const missing = [];
+    const fromCatalog = catalogLookup(body.target);
     texts.forEach((text, index) => {
       const key = `${body.target}\0${text}`;
-      if (cache.has(key)) translations[index] = cache.get(key);
+      const prebuilt = fromCatalog(text);
+      if (typeof prebuilt === 'string') translations[index] = prebuilt;
+      else if (cache.has(key)) translations[index] = cache.get(key);
+      else if (config.isVercel && !process.env.LIBRETRANSLATE_URL) translations[index] = text;
       else missing.push({ index, key, text });
     });
     if (missing.length) {
