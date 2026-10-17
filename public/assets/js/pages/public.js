@@ -56,7 +56,7 @@ export async function home() {
       <div class="hero__shade"></div>
       <div class="wrap hero__in">
         <p class="hero__kicker">Real estate investment platform</p>
-        <h1 class="hero__title">${(() => { const [a, ...b] = (h.hero_title || 'Invest in real estate. Build long-term wealth.').split(/(?<=\.)\s+/); return `${esc(a)}<br><span class="hero__gold">${esc(b.join(' '))}</span>`; })()}</h1>
+        <h1 class="hero__title">${(() => { const title = h.hero_title || 'Invest in real estate. Build long-term wealth.'; const parts = title.split(/\s+and\s+/i); if (parts.length === 2) return `${esc(parts[0])} <span class="hero__connector">and</span> <span class="hero__gold">${esc(parts[1].replace(/^[A-Z]/, (letter) => letter.toLowerCase()))}</span>`; const [first, ...rest] = title.split(/(?<=\.)\s+/); return `${esc(first)}<br><span class="hero__gold">${esc(rest.join(' '))}</span>`; })()}</h1>
         <p class="hero__sub">${esc(h.hero_subtitle || '')}</p>
         <div class="hero__cta"><a class="btn btn--gold btn--lg" href="/properties">Explore investments ${icon('arrow')}</a><a class="btn btn--outline-light btn--lg" href="/how-it-works"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m10 8 6 4-6 4Z" fill="#0b1829"/></svg> How it works</a></div>
         <ul class="hero__feats">

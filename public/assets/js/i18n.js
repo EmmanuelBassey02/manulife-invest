@@ -100,6 +100,12 @@ function applyJob(job, original, translated) {
   if (job.node.isConnected && job.read() === original && translated) job.write(translated);
 }
 
+function preserveWhitespace(original, translated) {
+  const leading = original.slice(0, original.length - original.trimStart().length);
+  const trailing = original.slice(original.trimEnd().length);
+  return `${leading}${translated}${trailing}`;
+}
+
 function schedule(root, lang, run = languageRun) {
   if (scheduled) return;
   scheduled = true;
@@ -113,18 +119,19 @@ function schedule(root, lang, run = languageRun) {
       const grouped = new Map();
       for (const job of jobs) {
         const original = job.original ?? job.read();
-        const key = `${lang}\0${original}`;
+        const normalized = original.trim();
+        const key = `${lang}\0${normalized}`;
         const cached = translationCache.get(key);
         if (cached) {
-          applyJob(job, original, cached);
+          applyJob(job, original, preserveWhitespace(original, cached));
           continue;
         }
         if (staticCatalogs.has(lang)) {
           applyJob(job, original, original);
           continue;
         }
-        if (!grouped.has(original)) grouped.set(original, []);
-        grouped.get(original).push(job);
+        if (!grouped.has(normalized)) grouped.set(normalized, []);
+        grouped.get(normalized).push(job);
       }
       const originals = [...grouped.keys()];
       let failed = false;
@@ -142,7 +149,10 @@ function schedule(root, lang, run = languageRun) {
             const translated = result.value[itemIndex];
             translationCache.set(`${lang}\0${original}`, translated);
             if (translationCache.size > 5000) translationCache.delete(translationCache.keys().next().value);
-            for (const job of grouped.get(original)) applyJob(job, original, translated);
+            for (const job of grouped.get(original)) {
+              const jobOriginal = job.original ?? job.read();
+              applyJob(job, jobOriginal, preserveWhitespace(jobOriginal, translated));
+            }
           });
         }
         if (failed) break;

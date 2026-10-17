@@ -40,13 +40,16 @@ async function main() {
   fs.mkdirSync(outputDir, { recursive: true });
   fs.mkdirSync(publicCatalogDir, { recursive: true });
   for (const locale of locales) {
-    const translated = Array(source.length);
+    let existing = {};
+    try { existing = JSON.parse(fs.readFileSync(path.join(outputDir, `${locale}.json`), 'utf8')).legacy || {}; } catch {}
+    const translated = source.map((text) => existing[keys[text]]);
+    const missing = source.map((text, index) => ({ text, index })).filter(({ index }) => typeof translated[index] !== 'string');
     const chunks = [];
-    for (let start = 0; start < source.length; start += batchSize) chunks.push({ start, texts: source.slice(start, start + batchSize) });
+    for (let start = 0; start < missing.length; start += batchSize) chunks.push(missing.slice(start, start + batchSize));
     for (let start = 0; start < chunks.length; start += concurrency) {
       const group = chunks.slice(start, start + concurrency);
-      const results = await Promise.all(group.map((chunk) => translate(locale, chunk.texts)));
-      group.forEach((chunk, index) => results[index].forEach((text, item) => { translated[chunk.start + item] = text; }));
+      const results = await Promise.all(group.map((chunk) => translate(locale, chunk.map(({ text }) => text))));
+      group.forEach((chunk, index) => results[index].forEach((text, item) => { translated[chunk[item].index] = text; }));
       process.stdout.write(`\r${locale}: ${Math.min(start + concurrency, chunks.length)}/${chunks.length} batches`);
     }
     process.stdout.write('\n');

@@ -98,7 +98,7 @@ function publicLayout(content, path) {
   return `<a class="skip" href="#main">Skip to content</a>
   <header class="site-head ${solid ? 'site-head--solid' : ''}">
     <div class="wrap site-head__in">
-      <a class="brand" href="/">${BRAND_MARK}<span>${esc(s.brand || 'EstateInvest')}</span></a>
+      <a class="brand" href="/">${BRAND_MARK}</a>
       <nav class="site-nav" id="site-nav" aria-label="Main">
         ${nav.map(([h, l]) => `<a href="${h}" ${path.startsWith(h) ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
         <div class="site-nav__cta">${languagePicker()}${state.user
@@ -113,7 +113,7 @@ function publicLayout(content, path) {
   <footer class="site-foot">
     <div class="wrap site-foot__grid">
       <div class="site-foot__brand">
-        <a class="brand" href="/">${BRAND_MARK}<span>${esc(s.brand || 'EstateInvest')}</span></a>
+        <a class="brand" href="/">${BRAND_MARK}</a>
         <p>${esc(s.address || '')}</p>
         <p><a href="mailto:${esc(s.email || '')}">${esc(s.email || '')}</a><br>${esc(s.phone || '')}</p>
         ${s.whatsapp ? `<a class="btn btn--outline-light btn--sm" href="https://wa.me/${esc(String(s.whatsapp).replace(/\D/g, ''))}" target="_blank" rel="noopener">${icon('chat')} Chat on WhatsApp</a>` : ''}
@@ -127,10 +127,9 @@ function publicLayout(content, path) {
 }
 
 function authLayout(content) {
-  const brand = esc(state.site?.site?.brand || 'EstateInvest');
   return `<a class="skip" href="#main">Skip to content</a><div class="auth">
     <aside class="auth__art" aria-hidden="true"><div class="auth__art-img" data-auth-art></div><div class="auth__art-copy">
-      <div class="auth__top-l"><a class="brand brand--light" href="/">${BRAND_MARK}<span>${brand}</span></a><span class="auth__tag">Secure <i>•</i> Transparent <i>•</i> Premium</span></div>
+      <div class="auth__top-l"><a class="brand brand--light" href="/">${BRAND_MARK}</a><span class="auth__tag">Secure <i>•</i> Transparent <i>•</i> Premium</span></div>
       <div class="auth__pitch">
         <p class="auth__kicker">Real estate investment platform</p>
         <h2 class="auth__h">Invest in<br><span>Real Assets.</span></h2>
@@ -138,7 +137,7 @@ function authLayout(content) {
         <ul class="auth__feats"><li><span>${icon('shield')}</span>Secure &amp; Regulated</li><li><span>${icon('chart')}</span>Transparent Records</li><li><span>${icon('building')}</span>Premium Opportunities</li></ul>
       </div>
       <blockquote class="auth__quote-card"><p>“Real estate creates generational wealth.”</p><small>Invest today. Build tomorrow.</small></blockquote></div></aside>
-    <main id="main" class="auth__main" tabindex="-1"><div class="auth__language">${languagePicker()}</div><a class="brand auth__brand-m" href="/">${BRAND_MARK}<span>${brand}</span></a>${content}</main></div>`;
+    <main id="main" class="auth__main" tabindex="-1"><div class="auth__language">${languagePicker()}</div><a class="brand auth__brand-m" href="/">${BRAND_MARK}</a>${content}</main></div>`;
 }
 
 const INVESTOR_NAV = [
@@ -171,7 +170,7 @@ function appLayout(content, path, kind) {
   const roleLabel = u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Investor';
   return `<a class="skip" href="#main">Skip to content</a><div class="shell shell--${kind}">
   <aside class="side" id="side" aria-label="Sidebar">
-    <a class="brand brand--light" href="${kind === 'admin' ? '/admin' : '/app'}">${BRAND_MARK}<span>${esc(state.site?.site?.brand || 'EstateInvest')}</span></a>
+    <a class="brand brand--light" href="${kind === 'admin' ? '/admin' : '/app'}">${BRAND_MARK}</a>
     <nav class="side-nav">${links.map((l) => navLink(l, path)).join('')}</nav>
     <nav class="side-nav side-nav--foot">
       ${kind === 'app' ? `<a href="/app/invest" class="btn btn--gold btn--block side__cta">${icon('plus')} New investment</a>` : ''}

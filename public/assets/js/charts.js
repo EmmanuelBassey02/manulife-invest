@@ -29,7 +29,7 @@ export function lineChart(points, { height = 240, format = (v) => money(v, { com
     ${grid}<path d="${area}" fill="url(#${id})"/><path d="${line}" class="chart__line"/>${labels}${dots}</svg>`;
 }
 
-export const PALETTE = ['#1f3a5f', '#c9a45c', '#3f8f84', '#8a6fb0', '#c86b5a', '#5b8bc4'];
+export const PALETTE = ['#14532d', '#16834a', '#248653', '#3c9b66', '#67b982', '#9bd2ad'];
 
 export function donut(items, { center = '', sub = '' } = {}) {
   const total = items.reduce((s, i) => s + i.value, 0) || 1;

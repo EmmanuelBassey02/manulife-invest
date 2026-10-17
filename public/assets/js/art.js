@@ -10,17 +10,17 @@ function rng(seed) {
 }
 
 const SKIES = [
-  ['#0a1626', '#1f3354', '#7d6a80', '#e7a56a', '#f7d39a'],
-  ['#0b1828', '#243d62', '#5f7392', '#d99a68', '#f3c98e'],
-  ['#08121f', '#1a2c4a', '#4c5d80', '#c4865e', '#eebd86'],
+  ['#0d281b', '#23543a', '#84a98b', '#e7eddc', '#f7fff8'],
+  ['#112f22', '#37654a', '#93ae99', '#e0ebdf', '#ffffff'],
+  ['#102b1e', '#264b37', '#72977f', '#d8e7dc', '#f1fbf4'],
 ];
 
 function glass(id) {
-  return `<linearGradient id="${id}-glow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a8"/><stop offset=".55" stop-color="#f0b465"/><stop offset="1" stop-color="#b5733a"/></linearGradient>
-  <linearGradient id="${id}-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d8bb0"/><stop offset=".5" stop-color="#2c4668"/><stop offset="1" stop-color="#16263d"/></linearGradient>
-  <linearGradient id="${id}-concrete" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4efe6"/><stop offset="1" stop-color="#c9c0b1"/></linearGradient>
-  <linearGradient id="${id}-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d5c78"/><stop offset="1" stop-color="#0e2233"/></linearGradient>
-  <linearGradient id="${id}-pool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fc3d6"/><stop offset="1" stop-color="#1f6e88"/></linearGradient>`;
+  return `<linearGradient id="${id}-glow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2f4e8"/><stop offset=".55" stop-color="#8fc5a1"/><stop offset="1" stop-color="#3f8a5d"/></linearGradient>
+  <linearGradient id="${id}-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a8cbb2"/><stop offset=".5" stop-color="#386a4b"/><stop offset="1" stop-color="#1a3827"/></linearGradient>
+  <linearGradient id="${id}-concrete" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5faf6"/><stop offset="1" stop-color="#c3d3c8"/></linearGradient>
+  <linearGradient id="${id}-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#21684a"/><stop offset="1" stop-color="#103522"/></linearGradient>
+  <linearGradient id="${id}-pool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#84c99b"/><stop offset="1" stop-color="#276b47"/></linearGradient>`;
 }
 
 function palm(x, y, s, flip = 1) {
@@ -39,7 +39,7 @@ function windows(x, y, w, h, cols, rows, r, lit = 0.6, id) {
   for (let i = 0; i < cols; i++) {
     for (let j = 0; j < rows; j++) {
       const on = r() < lit;
-      o += `<rect x="${(x + i * cw + cw * 0.18).toFixed(1)}" y="${(y + j * rh + rh * 0.2).toFixed(1)}" width="${(cw * 0.64).toFixed(1)}" height="${(rh * 0.6).toFixed(1)}" fill="${on ? `url(#${id}-glow)` : '#1c2c42'}" opacity="${on ? 0.95 : 0.85}"/>`;
+      o += `<rect x="${(x + i * cw + cw * 0.18).toFixed(1)}" y="${(y + j * rh + rh * 0.2).toFixed(1)}" width="${(cw * 0.64).toFixed(1)}" height="${(rh * 0.6).toFixed(1)}" fill="${on ? `url(#${id}-glow)` : '#1b3c2a'}" opacity="${on ? 0.95 : 0.85}"/>`;
     }
   }
   return o;
@@ -67,11 +67,11 @@ function residential(id, r, W, H) {
   for (let k = 0; k < 7; k++) o += `<rect x="${bx + 302 + k * 8}" y="${hz - 78}" width="3" height="72" fill="#4f3521"/>`;
   o += slab(bx + 70, hz - 172, 470, 72, id, r, 40);
   o += slab(bx + 150, hz - 248, 240, 54, id, r, 30);
-  o += `<rect x="${bx + 560}" y="${hz - 100}" width="16" height="94" fill="#2a3240"/>`;
+  o += `<rect x="${bx + 560}" y="${hz - 100}" width="16" height="94" fill="#203c2c"/>`;
   // Pool with reflection
   o += `<rect x="${bx - 60}" y="${hz + 22}" width="${560}" height="62" fill="url(#${id}-pool)"/>`;
-  o += `<rect x="${bx - 60}" y="${hz + 22}" width="560" height="4" fill="#e9e1d1"/>`;
-  for (let k = 0; k < 9; k++) o += `<rect x="${bx + k * 46}" y="${hz + 30 + (k % 3) * 9}" width="${24 + r() * 18}" height="3" fill="#ffd89a" opacity=".55"/>`;
+  o += `<rect x="${bx - 60}" y="${hz + 22}" width="560" height="4" fill="#e6f1e9"/>`;
+  for (let k = 0; k < 9; k++) o += `<rect x="${bx + k * 46}" y="${hz + 30 + (k % 3) * 9}" width="${24 + r() * 18}" height="3" fill="#d5efd9" opacity=".55"/>`;
   o += `<rect x="0" y="${hz + 84}" width="${W}" height="${H}" fill="#0b1712"/>`;
   o += palm(70, hz + 30, 1.25) + palm(W - 70, hz + 40, 1.35, -1) + palm(W - 150, hz + 10, 0.9, -1);
   o += tree(bx - 40, hz, 0.9) + tree(bx + 610, hz - 2, 1.05);
@@ -84,14 +84,14 @@ function commercial(id, r, W, H) {
   const t1x = 280 + r() * 40;
   o += `<rect x="${t1x}" y="60" width="150" height="${hz - 60}" fill="url(#${id}-glass)"/>`;
   o += windows(t1x + 6, 74, 138, hz - 90, 6, 22, r, 0.42, id);
-  o += `<path d="M${t1x - 6} 60 L${t1x + 75} 28 L${t1x + 156} 60 Z" fill="#1a2b42"/>`;
+  o += `<path d="M${t1x - 6} 60 L${t1x + 75} 28 L${t1x + 156} 60 Z" fill="#214b33"/>`;
   o += `<rect x="${t1x + 160}" y="140" width="120" height="${hz - 140}" fill="url(#${id}-glass)" opacity=".95"/>`;
   o += windows(t1x + 166, 152, 108, hz - 170, 5, 17, r, 0.36, id);
-  o += `<rect x="${t1x - 150}" y="230" width="120" height="${hz - 230}" fill="#1b2c44"/>`;
+  o += `<rect x="${t1x - 150}" y="230" width="120" height="${hz - 230}" fill="#1f4931"/>`;
   o += windows(t1x - 144, 240, 108, hz - 255, 5, 9, r, 0.3, id);
-  for (let k = 0; k < 22; k++) o += `<rect x="${t1x + 2}" y="${74 + k * ((hz - 90) / 22)}" width="146" height="1.2" fill="#9fb6d1" opacity=".35"/>`;
-  o += `<rect x="0" y="${hz}" width="${W}" height="${H - hz}" fill="#121821"/>`;
-  o += `<rect x="0" y="${hz + 28}" width="${W}" height="3" fill="#f0c27c" opacity=".35"/>`;
+  for (let k = 0; k < 22; k++) o += `<rect x="${t1x + 2}" y="${74 + k * ((hz - 90) / 22)}" width="146" height="1.2" fill="#a1cdb0" opacity=".35"/>`;
+  o += `<rect x="0" y="${hz}" width="${W}" height="${H - hz}" fill="#162b1d"/>`;
+  o += `<rect x="0" y="${hz + 28}" width="${W}" height="3" fill="#a9d4b3" opacity=".35"/>`;
   for (let k = 0; k < 7; k++) o += tree(40 + k * 120 + r() * 30, hz + 12, 0.7 + r() * 0.2, '#16281d');
   return o;
 }
@@ -117,11 +117,11 @@ function hospitality(id, r, W, H) {
   o += `<rect x="110" y="170" width="580" height="${hz - 170}" fill="url(#${id}-concrete)"/>`;
   for (let f = 0; f < 5; f++) {
     const y = 182 + f * 31;
-    o += `<rect x="104" y="${y + 22}" width="592" height="5" fill="#e9e3d8"/>`;
+    o += `<rect x="104" y="${y + 22}" width="592" height="5" fill="#e3eee5"/>`;
     o += windows(118, y, 564, 22, 18, 1, r, 0.7, id);
   }
-  o += `<rect x="96" y="160" width="608" height="12" fill="#efe9de"/>`;
-  o += `<rect x="0" y="${hz}" width="${W}" height="${H - hz}" fill="#e2cf9f" opacity=".9"/>`;
+  o += `<rect x="96" y="160" width="608" height="12" fill="#f7faf8"/>`;
+  o += `<rect x="0" y="${hz}" width="${W}" height="${H - hz}" fill="#dce9de" opacity=".9"/>`;
   o += `<rect x="0" y="${hz + 70}" width="${W}" height="${H}" fill="url(#${id}-water)"/>`;
   o += `<rect x="200" y="${hz + 14}" width="400" height="40" rx="18" fill="url(#${id}-pool)"/>`;
   o += palm(70, hz + 40, 1.2) + palm(150, hz + 30, 0.9) + palm(W - 60, hz + 46, 1.3, -1) + palm(W - 150, hz + 30, 0.95, -1);
@@ -138,7 +138,7 @@ export function propertyArt(seed = 1, type = 'residential', { variant = 0, label
   let skyline = '';
   for (let x = 0; x < W; x += 30 + r() * 40) {
     const h = 30 + r() * 110;
-    skyline += `<rect x="${x.toFixed(0)}" y="${(330 - h).toFixed(0)}" width="${(18 + r() * 30).toFixed(0)}" height="${h.toFixed(0)}" fill="#1a2840" opacity=".55"/>`;
+    skyline += `<rect x="${x.toFixed(0)}" y="${(330 - h).toFixed(0)}" width="${(18 + r() * 30).toFixed(0)}" height="${h.toFixed(0)}" fill="#1c462f" opacity=".55"/>`;
   }
   const scene = { commercial, mixed_use: mixed, hospitality }[type] || residential;
   return `<svg class="art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${label ? label.replace(/"/g, '') + ' illustration' : 'Property illustration'}">
@@ -146,7 +146,7 @@ export function propertyArt(seed = 1, type = 'residential', { variant = 0, label
     <linearGradient id="${id}-sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${sky[0]}"/><stop offset=".35" stop-color="${sky[1]}"/><stop offset=".62" stop-color="${sky[2]}"/><stop offset=".8" stop-color="${sky[3]}"/><stop offset="1" stop-color="${sky[4]}"/>
     </linearGradient>
-    <radialGradient id="${id}-sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe7b8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe7b8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="${id}-sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e5f4e8" stop-opacity=".9"/><stop offset="1" stop-color="#e5f4e8" stop-opacity="0"/></radialGradient>
     ${glass(id)}
   </defs>
   <rect width="${W}" height="${H}" fill="url(#${id}-sky)"/>

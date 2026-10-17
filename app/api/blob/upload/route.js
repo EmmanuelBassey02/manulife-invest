@@ -25,19 +25,19 @@ const uploadPurposes = {
 
 export async function POST(request) {
   try {
-    const origin = request.headers.get('origin');
-    if (origin && origin !== new URL(request.url).origin) throw new HttpError(403, 'Request blocked.');
     await initialize();
     const reqHeaders = Object.fromEntries(request.headers.entries());
     const ip = reqHeaders['x-forwarded-for']?.split(',')[0].trim() || 'unknown';
     const ctx = { req: { headers: reqHeaders }, ip };
-    await auth.loadSession(ctx);
     const body = await request.json();
 
     const result = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        const origin = request.headers.get('origin');
+        if (origin && origin !== new URL(request.url).origin) throw new HttpError(403, 'Request blocked.');
+        await auth.loadSession(ctx);
         const details = JSON.parse(clientPayload || '{}');
         const purpose = uploadPurposes[details.purpose];
         if (!purpose || !purpose.types.includes(details.mime) || !Number.isInteger(details.size) || details.size < 1 || details.size > 10 * 1024 * 1024) {
@@ -57,6 +57,7 @@ export async function POST(request) {
           maximumSizeInBytes: 10 * 1024 * 1024,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ uploadId }),
+          callbackUrl: new URL('/api/blob/upload', request.url).toString(),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
