@@ -308,6 +308,16 @@ export async function uploadFile(file, { maxMB = 10, types, purpose } = {}) {
   }
   return readFile(file, { maxMB, types });
 }
+/** Uploads files one after another and saves each; stops at the first failure and returns what succeeded. */
+export async function uploadMany(files, uploadOptions, save) {
+  const list = [...files];
+  const done = [];
+  for (const [index, file] of list.entries()) {
+    try { done.push(await save(await uploadFile(file, uploadOptions), file, index)); }
+    catch (error) { return { done, error }; }
+  }
+  return { done, error: null };
+}
 export const fileSize = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 /* ---------------------------------------------------------------- markdown */

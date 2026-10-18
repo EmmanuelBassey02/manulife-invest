@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 const config = require('../../../../server/config');
-const { db, insert } = require('../../../../server/db');
+const { db } = require('../../../../server/db');
 const auth = require('../../../../server/lib/auth');
 const { initialize } = require('../../../../server/api');
 const { now, HttpError } = require('../../../../server/lib/util');
@@ -46,12 +46,13 @@ export async function POST(request) {
         if (purpose.investor) auth.requireInvestor(ctx);
         else auth.requireAdmin(ctx, purpose.permission);
         const uploadId = crypto.randomUUID();
-        await insert(db, 'upload_tokens', {
-          upload_id: uploadId, user_id: ctx.user.id, purpose: details.purpose,
-          original_name: String(details.name || 'file').replace(/[^\w.\- ]/g, '_').slice(0, 120),
-          mime: details.mime, size: details.size, pathname: null,
-          created_at: now(), expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), used_at: null,
-        });
+        await db.run(
+          'INSERT INTO upload_tokens (upload_id, user_id, purpose, original_name, mime, size, pathname, created_at, expires_at, used_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+          [
+            uploadId, ctx.user.id, details.purpose, String(details.name || 'file').replace(/[^\w.\- ]/g, '_').slice(0, 120),
+            details.mime, details.size, null, now(), new Date(Date.now() + 15 * 60 * 1000).toISOString(), null,
+          ],
+        );
         return {
           allowedContentTypes: [details.mime],
           maximumSizeInBytes: 10 * 1024 * 1024,

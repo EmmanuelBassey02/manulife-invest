@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, DEV_LABEL,
-  duration, empty, uploadFile, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText, pctText, returnPeriod,
+  duration, empty, uploadFile, uploadMany, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText, pctText, returnPeriod,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { bars } from '../charts.js';
@@ -136,7 +136,7 @@ export async function investor(ctx) {
   };
 }
 
-function issueDocModal({ userId = null, investments = [], investors = null }, done) {
+function issueDocModal({ userId = null, investments = [], investors = null }, done_) {
   modal({
     title: 'Issue a document',
     body: `<form class="form" data-f novalidate><div class="form-grid">
@@ -144,15 +144,21 @@ function issueDocModal({ userId = null, investments = [], investors = null }, do
       ${investments.length ? field({ name: 'investment_id', label: 'Investment', full: true, options: [['', 'Not linked to an investment'], ...investments.map((i) => [i.id, `${i.ref} · ${i.property_name}`])] }) : ''}
       ${field({ name: 'category', label: 'Category', required: true, options: [['agreement', 'Investment agreement'], ['terms', 'Terms'], ['risk', 'Risk disclosure'], ['property', 'Property document'], ['statement', 'Statement'], ['receipt', 'Receipt'], ['certificate', 'Certificate'], ['redemption', 'Redemption confirmation'], ['other', 'Other']] })}
       ${field({ name: 'title', label: 'Title', required: true, attrs: 'maxlength="160"' })}
-      <div class="field field--full"><label for="docfile">File</label><input id="docfile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required><p class="field__hint">PDF, JPG, PNG or WEBP up to 10 MB.</p><p class="field__error" hidden></p></div>
+      <div class="field field--full"><label for="docfile">File</label><input id="docfile" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" required><p class="field__hint">PDF, JPG, PNG or WEBP up to 10 MB. You can select several files at once.</p><p class="field__error" hidden></p></div>
     </div><p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Issue document</button></div></form>`,
     onMount(panel, close) {
       const form = panel.querySelector('[data-f]');
       bindForm(form, async (d) => {
-        let file;
-        try { file = await uploadFile(form.querySelector('#docfile').files[0], { purpose: 'investor_document' }); } catch (e) { throw { fields: {}, message: e.message }; }
-        await api.post('/api/admin/documents', { ...d, user_id: d.user_id ? Number(d.user_id) : null, investment_id: d.investment_id ? Number(d.investment_id) : null, file });
-        close(); toast('Document issued.'); done();
+        const files = [...form.querySelector('#docfile').files];
+        if (!files.length) throw { fields: {}, message: 'Choose a file to upload.' };
+        const { done, error } = await uploadMany(files, { purpose: 'investor_document' }, (file, original) => api.post('/api/admin/documents', {
+          ...d, title: files.length > 1 ? `${d.title} – ${original.name.replace(/\.[^.]+$/, '')}`.slice(0, 160) : d.title,
+          user_id: d.user_id ? Number(d.user_id) : null, investment_id: d.investment_id ? Number(d.investment_id) : null, file,
+        }));
+        if (error && !done.length) throw { fields: {}, message: error.message };
+        close(); done_();
+        if (error) toast(`${done.length} of ${files.length} documents issued. ${error.message}`, 'bad');
+        else toast(files.length > 1 ? `${done.length} documents issued.` : 'Document issued.');
       });
     },
   });
@@ -204,7 +210,7 @@ export async function kycReview(ctx) {
       </section>
       <section class="card"><h2 class="card__title">Verification status</h2>
         <form class="form" data-f novalidate>
-          <ul class="verify-list">${current.map((doc) => `<li><span>${esc(labels[doc.kind])}</span><select name="doc_${doc.id}" aria-label="${esc(labels[doc.kind])} status"><option value="pending" ${doc.status === 'pending' ? 'selected' : ''}>Pending</option><option value="verified" ${doc.status === 'verified' ? 'selected' : ''}>Verified</option><option value="rejected" ${doc.status === 'rejected' ? 'selected' : ''}>Rejected</option></select></li>`).join('')}
+          <ul class="verify-list">${current.map((doc) => `<li><span>${esc(labels[doc.kind])} <small class="muted">${esc(doc.original_name)}</small></span><select name="doc_${doc.id}" aria-label="${esc(labels[doc.kind])} status"><option value="pending" ${doc.status === 'pending' ? 'selected' : ''}>Pending</option><option value="verified" ${doc.status === 'verified' ? 'selected' : ''}>Verified</option><option value="rejected" ${doc.status === 'rejected' ? 'selected' : ''}>Rejected</option></select></li>`).join('')}
             <li><span>Source of funds</span>${sf.source ? badge('submitted', 'Provided') : badge('not_started', 'Not provided')}</li><li><span>Suitability</span>${su.risk_tolerance ? badge('submitted', 'Provided') : badge('not_started', 'Not provided')}</li></ul>
           ${field({ name: 'note', label: 'Note to investor', type: 'textarea', rows: 3, hint: 'Required when rejecting or requesting information. The investor sees this message.', value: k.admin_note || '', attrs: 'maxlength="2000"' })}
           <p class="form-error" hidden></p>
@@ -430,7 +436,7 @@ export async function propertyEdit(ctx) {
       <div class="stack">
         <section class="card"><h2 class="card__title">Images</h2>${isNew ? '<p class="muted">Save the property first, then add images.</p>' : `
           <div class="thumbs">${p.images.length ? p.images.map((src, idx) => `<figure class="thumb"><img src="${src}" alt=""><button class="icon-btn icon-btn--sm" data-rmimg="${p.image_ids[idx]}" aria-label="Remove image">${icon('trash')}</button></figure>`).join('') : `<div class="thumb thumb--art">${propertyVisual(p)}</div><p class="muted small">No photos yet — a generated illustration is shown instead.</p>`}</div>
-          <label class="btn btn--ghost btn--block">${icon('upload')} Upload image<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" data-img></label>`}</section>
+          <label class="btn btn--ghost btn--block">${icon('upload')} Upload image<input type="file" multiple accept="image/jpeg,image/png,image/webp" class="sr-only" data-img></label>`}</section>
         <section class="card"><h2 class="card__title">Documents</h2>${isNew ? '<p class="muted">Save the property first, then add documents.</p>' : `
           ${d.documents.length ? `<ul class="doclist">${d.documents.map((x) => `<li>${icon('file')}<div><strong>${esc(x.title)}</strong><small>${x.is_public ? 'Public' : 'Private'} · ${fileSize(x.size)}</small></div><a class="icon-btn icon-btn--sm" target="_blank" href="${x.url}" aria-label="View">${icon('eye')}</a><button class="icon-btn icon-btn--sm" data-rmdoc="${x.id}" aria-label="Remove">${icon('trash')}</button></li>`).join('')}</ul>` : '<p class="muted">No documents.</p>'}
           <button class="btn btn--ghost btn--block" data-adddoc>${icon('plus')} Add document</button>`}</section>
@@ -446,8 +452,11 @@ export async function propertyEdit(ctx) {
         else { await api.put(`/api/admin/properties/${p.id}`, body); toast('Changes saved.'); ctx.reload(); }
       });
       root.querySelector('[data-img]')?.addEventListener('change', async (e) => {
-        try { const file = await uploadFile(e.target.files[0], { types: ['image/jpeg', 'image/png', 'image/webp'], purpose: 'property_image' }); await api.post(`/api/admin/properties/${p.id}/images`, { file }); toast('Image uploaded.'); ctx.reload(); }
-        catch (err) { toast(err.message, 'bad'); }
+        const { done, error } = await uploadMany(e.target.files, { types: ['image/jpeg', 'image/png', 'image/webp'], purpose: 'property_image' }, (file) => api.post(`/api/admin/properties/${p.id}/images`, { file }));
+        e.target.value = '';
+        if (done.length) toast(done.length === 1 ? 'Image uploaded.' : `${done.length} images uploaded.`);
+        if (error) toast(error.message, 'bad');
+        if (done.length) ctx.reload();
       });
       root.querySelectorAll('[data-rmimg]').forEach((b) => b.addEventListener('click', async () => {
         if (!(await confirmDialog({ title: 'Remove this image?', message: 'It will no longer appear on the listing.', confirm: 'Remove', tone: 'danger' }))) return;
@@ -460,14 +469,20 @@ export async function propertyEdit(ctx) {
       root.querySelector('[data-adddoc]')?.addEventListener('click', () => modal({
         title: 'Add property document',
         body: `<form class="form" data-df novalidate>${field({ name: 'title', label: 'Title', required: true, attrs: 'maxlength="160"' })}
-          <div class="field"><label for="pdoc">File</label><input id="pdoc" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required><p class="field__error" hidden></p></div>
+          <div class="field"><label for="pdoc">File</label><input id="pdoc" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" required><p class="field__hint">You can select several files at once.</p><p class="field__error" hidden></p></div>
           ${check({ name: 'is_public', label: 'Show on the public property page', checked: true })}<p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Upload</button></div></form>`,
         onMount(panel, close) {
           const f = panel.querySelector('[data-df]');
           bindForm(f, async (v) => {
-            let file;
-            try { file = await uploadFile(f.querySelector('#pdoc').files[0], { purpose: 'property_document' }); } catch (e) { throw { fields: {}, message: e.message }; }
-            await api.post(`/api/admin/properties/${p.id}/documents`, { ...v, file }); close(); toast('Document added.'); ctx.reload();
+            const files = [...f.querySelector('#pdoc').files];
+            if (!files.length) throw { fields: {}, message: 'Choose a file to upload.' };
+            const { done, error } = await uploadMany(files, { purpose: 'property_document' }, (file, original) => api.post(`/api/admin/properties/${p.id}/documents`, {
+              ...v, title: files.length > 1 ? `${v.title} – ${original.name.replace(/\.[^.]+$/, '')}`.slice(0, 160) : v.title, file,
+            }));
+            if (error && !done.length) throw { fields: {}, message: error.message };
+            close(); ctx.reload();
+            if (error) toast(`${done.length} of ${files.length} documents added. ${error.message}`, 'bad');
+            else toast(files.length > 1 ? `${done.length} documents added.` : 'Document added.');
           });
         },
       }));

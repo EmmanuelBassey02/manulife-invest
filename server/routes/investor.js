@@ -53,6 +53,8 @@ td{padding:10px 0;border-bottom:1px solid #eee;vertical-align:top}td:first-child
 <table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><p class="foot">${esc(foot)}</p></div><button type="button" data-print>Print or save as PDF</button><script src="/assets/js/print.js"></script></body></html>`;
 }
 
+const KYC_MAX_FILES = 5;
+
 function register(r) {
   /* ------------------------------------------------------------- dashboard */
   r.get('/api/me/dashboard', async (ctx) => {
@@ -319,11 +321,26 @@ function register(r) {
       file: { type: 'object', required: true },
     });
     const allowed = b.kind === 'selfie' ? ['image/jpeg', 'image/png', 'image/webp'] : ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const count = await db.get("SELECT COUNT(*) AS n FROM kyc_documents WHERE user_id=? AND kind=? AND status<>'replaced'", [ctx.user.id, b.kind]);
+    if (Number(count.n) >= KYC_MAX_FILES) throw new HttpError(422, `You can upload up to ${KYC_MAX_FILES} files here. Remove one to add another.`);
     const f = await S.saveUpload(b.file, ctx.user.id, `kyc_${b.kind}`, 'private', allowed);
-    await db.run("UPDATE kyc_documents SET status='replaced' WHERE user_id=? AND kind=? AND status<>'replaced'", [ctx.user.id, b.kind]);
-    await insert(db, 'kyc_documents', { user_id: ctx.user.id, kind: b.kind, file_id: f.id, status: 'pending', created_at: now() });
+    const docId = await insert(db, 'kyc_documents', { user_id: ctx.user.id, kind: b.kind, file_id: f.id, status: 'pending', created_at: now() });
     if (b.kind === 'identity' && b.doc_type) await db.run('UPDATE kyc_submissions SET id_doc_type=?, updated_at=? WHERE id=?', [b.doc_type, now(), k.id]);
-    return { ok: true, file: f };
+    const label = { identity: 'identity document', address: 'proof of address', selfie: 'selfie' }[b.kind];
+    try {
+      await S.notifyAdmins(`Document uploaded: ${label}`, `${ctx.user.first_name} ${ctx.user.last_name} uploaded ${f.name} (${label}).`, `/admin/kyc/${ctx.user.id}`, { email: true });
+    } catch (error) { console.error('[kyc] could not notify admins of an upload:', error.message); }
+    return { ok: true, file: f, document: { id: docId, kind: b.kind, status: 'pending', original_name: f.name, size: f.size } };
+  });
+
+  r.delete('/api/me/kyc/document/:id', async (ctx) => {
+    A.requireInvestor(ctx);
+    const k = await kycRecord(ctx.user.id);
+    kycEditable(k);
+    const doc = await db.get("SELECT id, kind FROM kyc_documents WHERE id=? AND user_id=? AND status<>'replaced'", [Number(ctx.params.id) || 0, ctx.user.id]);
+    if (!doc) throw NotFound('Document');
+    await db.run("UPDATE kyc_documents SET status='replaced' WHERE id=?", [doc.id]);
+    return { ok: true };
   });
 
   r.post('/api/me/kyc/funds', async (ctx) => {

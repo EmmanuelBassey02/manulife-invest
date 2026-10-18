@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, duration, pctText, returnPeriod,
-  empty, uploadFile, fileSize, copyText, shortHash, statusText, sentence,
+  empty, uploadFile, uploadMany, fileSize, copyText, shortHash, statusText, sentence,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { qrSvg } from '../qr.js';
@@ -389,21 +389,26 @@ export async function notifications(ctx) {
 const KYC_STEPS = ['Personal info', 'Identity document', 'Proof of address', 'Selfie', 'Source of funds', 'Review'];
 const IMG = ['image/jpeg', 'image/png', 'image/webp'];
 const IMG_PDF = [...IMG, 'application/pdf'];
+const KYC_MAX_FILES = 5;
+
+const uploadedItem = (d) => `<li data-doc-id="${d.id}">${icon('file')}<div><strong>${esc(d.original_name)}</strong><small>${fileSize(d.size)}</small></div>${badge(d.status)}<button type="button" class="icon-btn icon-btn--sm" data-remove="${d.id}" aria-label="Remove file">${icon('trash')}</button></li>`;
 
 function uploader(kind, existing, { accept, title, hint, docTypes }) {
   return `<div class="upload-wrap">
     ${docTypes ? `<fieldset class="doc-types"><legend>Accepted documents</legend>${docTypes.map(([v, l, ic], i) => `<label class="doc-type"><input type="radio" name="doc_type" value="${v}" ${i === 0 ? 'checked' : ''}>${icon(ic)}<span>${l}</span></label>`).join('')}</fieldset>` : ''}
     <label class="drop" data-drop="${kind}">
-      <input type="file" accept="${accept.join(',')}" ${kind === 'selfie' ? 'capture="user"' : ''} class="sr-only" data-file="${kind}">
+      <input type="file" accept="${accept.join(',')}" ${kind === 'selfie' ? 'capture="user"' : 'multiple'} class="sr-only" data-file="${kind}">
       ${icon(kind === 'selfie' ? 'camera' : 'upload')}<strong>${title}</strong><span class="muted small">${hint}</span>
-      <span class="drop__status" data-status="${kind}">${existing ? `${icon('check')} ${esc(existing.original_name)} · ${fileSize(existing.size)} uploaded` : ''}</span>
+      <span class="drop__status" data-status="${kind}"></span>
     </label>
+    <ul class="doclist doclist--compact" data-list="${kind}">${existing.map(uploadedItem).join('')}</ul>
   </div>`;
 }
 
 export async function kyc(ctx) {
   const { kyc: k, documents } = await api.get('/api/me/kyc');
-  const docs = Object.fromEntries(documents.map((d) => [d.kind, d]));
+  const docs = { identity: [], address: [], selfie: [] };
+  for (const d of documents) (docs[d.kind] ||= []).push(d);
   const locked = ['pending_review', 'approved'].includes(k.status);
   if (locked) {
     return {
@@ -420,7 +425,7 @@ export async function kyc(ctx) {
   const p = k.personal || {};
   const sf = k.source_of_funds || {};
   const su = k.suitability || {};
-  const done = [!!k.personal?.dob, !!docs.identity, !!docs.address, !!docs.selfie, !!sf.source];
+  const done = [!!k.personal?.dob, !!docs.identity.length, !!docs.address.length, !!docs.selfie.length, !!sf.source];
   let step = Math.min(Number(ctx.query.step) || done.findIndex((x) => !x), 5);
   if (step < 0) step = 5;
 
@@ -435,11 +440,11 @@ export async function kyc(ctx) {
       ${field({ name: 'postal_code', label: 'Postal code', value: p.postal_code || '', attrs: 'autocomplete="postal-code" maxlength="20"' })}
     </div><p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Continue ${icon('arrow')}</button></div></form>`,
     `<h2 class="card__title">Upload identity document</h2><p class="muted">Upload a valid government-issued ID. All four corners must be visible and the text readable.</p>
-      ${uploader('identity', docs.identity, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB)', docTypes: [['passport', 'Passport', 'globe'], ['national_id', 'National ID card', 'card'], ['drivers_license', 'Driver’s license', 'card']] })}`,
+      ${uploader('identity', docs.identity, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB each). You can upload several files.', docTypes: [['passport', 'Passport', 'globe'], ['national_id', 'National ID card', 'card'], ['drivers_license', 'Driver’s license', 'card']] })}`,
     `<h2 class="card__title">Upload proof of address</h2><p class="muted">A utility bill, bank statement or tenancy agreement dated within the last 3 months, showing your name and address.</p>
-      ${uploader('address', docs.address, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB)', docTypes: [['utility_bill', 'Utility bill', 'file'], ['bank_statement', 'Bank statement', 'file'], ['tenancy', 'Tenancy agreement', 'home']] })}`,
+      ${uploader('address', docs.address, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB each). You can upload several files.', docTypes: [['utility_bill', 'Utility bill', 'file'], ['bank_statement', 'Bank statement', 'file'], ['tenancy', 'Tenancy agreement', 'home']] })}`,
     `<h2 class="card__title">Take a selfie</h2><p class="muted">Take a clear photo of your face in good light, without glasses or hats. On mobile this opens your camera.</p>
-      ${uploader('selfie', docs.selfie, { accept: IMG, title: 'Take or upload a selfie', hint: 'JPG, PNG or WEBP (max 10 MB)' })}`,
+      ${uploader('selfie', docs.selfie, { accept: IMG, title: 'Take or upload a selfie', hint: 'JPG, PNG or WEBP (max 10 MB each). Use the button again to add more photos.' })}`,
     `<form class="form" data-step="funds" novalidate><div class="form-grid">
       ${field({ name: 'source', label: 'Main source of funds', required: true, value: sf.source || '', options: [['', 'Select'], ['employment', 'Employment income'], ['business', 'Business income'], ['investments', 'Investment returns'], ['savings', 'Savings'], ['inheritance', 'Inheritance or gift'], ['property_sale', 'Sale of property'], ['other', 'Other']] })}
       ${field({ name: 'annual_income', label: 'Annual income (USD)', required: true, value: su.annual_income || '', options: [['', 'Select'], ['under_25k', 'Under $25,000'], ['25k_100k', '$25,000 – $100,000'], ['100k_250k', '$100,000 – $250,000'], ['250k_1m', '$250,000 – $1M'], ['over_1m', 'Over $1M']] })}
@@ -474,28 +479,44 @@ export async function kyc(ctx) {
         const kind = input.dataset.file;
         const drop = root.querySelector(`[data-drop="${kind}"]`);
         const status = root.querySelector(`[data-status="${kind}"]`);
-        const upload = async (file) => {
-          status.innerHTML = '<span class="spinner spinner--sm"></span> Uploading…';
+        const list = root.querySelector(`[data-list="${kind}"]`);
+        const refresh = () => drop.classList.toggle('is-done', list.children.length > 0);
+        refresh();
+        const upload = async (fileList) => {
+          const files = [...fileList];
+          if (!files.length) return;
+          if (list.children.length + files.length > KYC_MAX_FILES) {
+            status.innerHTML = `<span class="text-bad">${icon('alert')} You can upload up to ${KYC_MAX_FILES} files here.</span>`;
+            return;
+          }
           drop.classList.add('is-busy');
-          try {
-            const f = await uploadFile(file, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` });
-            const docType = root.querySelector('input[name=doc_type]:checked')?.value || (kind === 'selfie' ? 'selfie' : undefined);
-            await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
-            status.innerHTML = `${icon('check')} ${esc(file.name)} uploaded`;
-            drop.classList.add('is-done');
-            toast('Document uploaded.');
-          } catch (e) {
-            status.innerHTML = `<span class="text-bad">${icon('alert')} ${esc(e.message)}</span>`;
-          } finally { drop.classList.remove('is-busy'); }
+          const docType = root.querySelector('input[name=doc_type]:checked')?.value || (kind === 'selfie' ? 'selfie' : undefined);
+          const { done, error } = await uploadMany(files, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` }, async (f, file, index) => {
+            status.innerHTML = `<span class="spinner spinner--sm"></span> Uploading ${index + 1} of ${files.length}…`;
+            const res = await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
+            list.insertAdjacentHTML('beforeend', uploadedItem(res.document));
+            return res;
+          });
+          drop.classList.remove('is-busy');
+          refresh();
+          status.innerHTML = error ? `<span class="text-bad">${icon('alert')} ${esc(error.message)}</span>` : `${icon('check')} ${done.length} ${done.length === 1 ? 'file' : 'files'} uploaded`;
+          if (done.length) toast(done.length === 1 ? 'Document uploaded.' : `${done.length} documents uploaded.`);
         };
-        input.addEventListener('change', () => input.files[0] && upload(input.files[0]));
+        input.addEventListener('change', () => { upload(input.files); input.value = ''; });
         drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-over'); });
         drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
-        drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-over'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); });
+        drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-over'); upload(kind === 'selfie' ? [...e.dataTransfer.files].slice(0, 1) : e.dataTransfer.files); });
+        list.addEventListener('click', async (e) => {
+          const button = e.target.closest('[data-remove]');
+          if (!button) return;
+          button.disabled = true;
+          try { await api.del(`/api/me/kyc/document/${button.dataset.remove}`); button.closest('li').remove(); refresh(); status.innerHTML = ''; }
+          catch (err) { button.disabled = false; toast(err.message, 'bad'); }
+        });
       });
       root.querySelector('[data-continue]')?.addEventListener('click', (e) => {
         const kind = ['', 'identity', 'address', 'selfie'][step];
-        if (kind && !root.querySelector(`[data-drop="${kind}"]`).classList.contains('is-done') && !docs[kind]) {
+        if (kind && !root.querySelector(`[data-list="${kind}"]`).children.length) {
           e.preventDefault();
           e.stopPropagation();
           toast('Upload the document before continuing.', 'bad');

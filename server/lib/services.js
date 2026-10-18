@@ -116,9 +116,9 @@ async function notify(userId, { type, title, body, link, email = true }) {
   }
 }
 
-async function notifyAdmins(title, body, link) {
+async function notifyAdmins(title, body, link, { email = false } = {}) {
   const admins = await db.all("SELECT id FROM users WHERE role IN ('admin','super_admin') AND status='active'");
-  for (const a of admins) await notify(a.id, { type: 'admin', title, body, link, email: false });
+  for (const a of admins) await notify(a.id, { type: 'admin', title, body, link, email });
 }
 
 /* ------------------------------------------------------------------- uploads */
@@ -153,7 +153,7 @@ async function writeStoredUpload(stored, buf, mime) {
 }
 
 async function findUploadToken(pathname, uploaderId, kind) {
-  for (let attempt = 0; attempt < 50; attempt++) {
+  for (let attempt = 0; attempt < 100; attempt++) {
     const token = await db.get('SELECT * FROM upload_tokens WHERE pathname=? AND user_id=? AND purpose=? AND used_at IS NULL AND expires_at>?', [pathname, uploaderId, kind, now()]);
     if (token) return token;
     await new Promise((resolve) => setTimeout(resolve, 100));
