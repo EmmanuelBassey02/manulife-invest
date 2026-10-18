@@ -1,4 +1,5 @@
 'use strict';
+const crypto = require('node:crypto');
 const { db, insert, update } = require('../db');
 const { now, round, parseJSON, HttpError, NotFound, slugify, paginate } = require('../lib/util');
 const { check, passwordProblem } = require('../lib/validate');
@@ -24,13 +25,13 @@ function register(r) {
     const one = async (sql, p) => Number((await db.get(sql, p)).n);
     const startMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
     const [investors, investorsPrev, activeInv, activePrev, totalInvested, totalPrev, pendingKyc, maturing, matured, pendingRed, paymentsReview] = await Promise.all([
-      one("SELECT COUNT(*) AS n FROM users WHERE role='investor'"),
-      one("SELECT COUNT(*) AS n FROM users WHERE role='investor' AND created_at < ?", [startMonth]),
+      one("SELECT COUNT(*) AS n FROM users WHERE role='investor' AND status<>'deleted'"),
+      one("SELECT COUNT(*) AS n FROM users WHERE role='investor' AND status<>'deleted' AND created_at < ?", [startMonth]),
       one("SELECT COUNT(*) AS n FROM investments WHERE status IN ('active','maturing')"),
       one("SELECT COUNT(*) AS n FROM investments WHERE status IN ('active','maturing') AND start_date < ?", [startMonth]),
       one(`SELECT COALESCE(SUM(amount_usd),0) AS n FROM investments WHERE status IN (${inList(FUNDED)})`),
       one(`SELECT COALESCE(SUM(amount_usd),0) AS n FROM investments WHERE status IN (${inList(FUNDED)}) AND created_at < ?`, [startMonth]),
-      one("SELECT COUNT(*) AS n FROM users WHERE kyc_status='pending_review'"),
+      one("SELECT COUNT(*) AS n FROM users WHERE role='investor' AND status<>'deleted' AND kyc_status='pending_review'"),
       one("SELECT COUNT(*) AS n FROM investments WHERE status='maturing'"),
       one("SELECT COUNT(*) AS n FROM investments WHERE status='matured'"),
       one("SELECT COUNT(*) AS n FROM redemptions WHERE status IN ('requested','under_review','approved')"),
@@ -55,7 +56,7 @@ function register(r) {
   r.get('/api/admin/investors', async (ctx) => {
     A.requireAdmin(ctx, 'investors');
     const { page, size, offset } = paginate(ctx.query);
-    const where = ["u.role='investor'"];
+    const where = ["u.role='investor'", "u.status<>'deleted'"];
     const p = [];
     if (ctx.query.q) { where.push("(LOWER(u.first_name || ' ' || u.last_name) LIKE ? OR LOWER(u.email) LIKE ? OR u.phone LIKE ?)"); const l = likeParam(ctx.query.q); p.push(l, l, l); }
     if (['active', 'suspended'].includes(ctx.query.status)) { where.push('u.status=?'); p.push(ctx.query.status); }
@@ -73,7 +74,7 @@ function register(r) {
 
   r.get('/api/admin/investors/:id', async (ctx) => {
     A.requireAdmin(ctx, 'investors');
-    const u = await db.get("SELECT * FROM users WHERE id=? AND role='investor'", [Number(ctx.params.id) || 0]);
+    const u = await db.get("SELECT * FROM users WHERE id=? AND role='investor' AND status<>'deleted'", [Number(ctx.params.id) || 0]);
     if (!u) throw NotFound('Investor');
     const [invs, pays, docs, tickets, kyc, reds] = await Promise.all([
       db.all(`${INV_SELECT} WHERE i.user_id=? ORDER BY i.id DESC`, [u.id]),
@@ -92,7 +93,7 @@ function register(r) {
   r.post('/api/admin/investors/:id/status', async (ctx) => {
     A.requireAdmin(ctx, 'investors');
     const b = check(ctx.body, { status: { type: 'enum', required: true, values: ['active', 'suspended'] }, reason: { required: true, max: 500 } });
-    const u = await db.get("SELECT * FROM users WHERE id=? AND role='investor'", [Number(ctx.params.id) || 0]);
+    const u = await db.get("SELECT * FROM users WHERE id=? AND role='investor' AND status<>'deleted'", [Number(ctx.params.id) || 0]);
     if (!u) throw NotFound('Investor');
     await db.run('UPDATE users SET status=?, updated_at=? WHERE id=?', [b.status, now(), u.id]);
     if (b.status === 'suspended') await db.run('UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL', [now(), u.id]);
@@ -102,14 +103,33 @@ function register(r) {
     return { ok: true };
   });
 
+  r.delete('/api/admin/investors/:id', async (ctx) => {
+    A.requireAdmin(ctx, 'investors');
+    const id = Number(ctx.params.id) || 0;
+    const u = await db.get("SELECT id, status FROM users WHERE id=? AND role='investor' AND status<>'deleted'", [id]);
+    if (!u) throw NotFound('Investor');
+    const t = now();
+    await db.tx(async (h) => {
+      const result = await h.run("UPDATE users SET first_name='Deleted', last_name='Member', email=?, phone=NULL, country=NULL, password_hash=?, email_verified_at=NULL, last_login_at=NULL, status='deleted', updated_at=? WHERE id=? AND role='investor' AND status<>'deleted'", [
+        `deleted-${id}@deleted.invalid`, A.hashPassword(crypto.randomBytes(32).toString('hex')), t, id,
+      ]);
+      if (!result.changes) throw NotFound('Investor');
+      await h.run('UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL', [t, id]);
+      await h.run('UPDATE tokens SET used_at=? WHERE user_id=? AND used_at IS NULL', [t, id]);
+      await h.run('UPDATE upload_tokens SET used_at=?, expires_at=? WHERE user_id=? AND used_at IS NULL', [t, t, id]);
+    });
+    await S.audit(ctx, 'investor.delete', 'user', id, { status: u.status }, { status: 'deleted' });
+    return { ok: true };
+  });
+
   /* --------------------------------------------------------------------- KYC */
   r.get('/api/admin/kyc', async (ctx) => {
     A.requireAdmin(ctx, 'kyc');
     const status = ['pending_review', 'approved', 'rejected', 'requires_info', 'not_started'].includes(ctx.query.status) ? ctx.query.status : 'pending_review';
     const items = await db.all(
-      `SELECT k.*, u.first_name, u.last_name, u.email, u.country FROM kyc_submissions k JOIN users u ON u.id=k.user_id WHERE k.status=? ORDER BY COALESCE(k.submitted_at, k.updated_at) DESC LIMIT 200`, [status],
+      `SELECT k.*, u.first_name, u.last_name, u.email, u.country FROM kyc_submissions k JOIN users u ON u.id=k.user_id WHERE k.status=? AND u.status<>'deleted' ORDER BY COALESCE(k.submitted_at, k.updated_at) DESC LIMIT 200`, [status],
     );
-    const counts = await db.all('SELECT status, COUNT(*) AS n FROM kyc_submissions GROUP BY status');
+    const counts = await db.all("SELECT k.status, COUNT(*) AS n FROM kyc_submissions k JOIN users u ON u.id=k.user_id WHERE u.status<>'deleted' GROUP BY k.status");
     return { items: items.map((k) => ({ user_id: k.user_id, name: `${k.first_name} ${k.last_name}`, email: k.email, country: k.country, status: k.status, submitted_at: k.submitted_at, reviewed_at: k.reviewed_at })), counts: Object.fromEntries(counts.map((c) => [c.status, Number(c.n)])) };
   });
 
@@ -416,10 +436,10 @@ function register(r) {
 
   /* ------------------------------------------------------------------- plans */
   const planSpec = (partial) => ({
-    name: { required: !partial, max: 100 }, duration_months: { type: 'int', min: 1, max: 240, label: 'duration (months)' },
+    name: { required: !partial, max: 100 }, description: { max: 300 }, duration_months: { type: 'int', min: 1, max: 240, label: 'duration (months)' },
     duration_days: { type: 'int', min: 1, max: 7300, label: 'duration (days)' },
     min_amount: { type: 'number', required: !partial, min: 1, label: 'minimum amount' }, max_amount: { type: 'number', min: 1, label: 'maximum amount' },
-    return_type: { type: 'enum', values: ['pending', 'fixed_total', 'fixed_annual'], label: 'return type' }, return_rate: { type: 'number', min: 0, max: 1000, label: 'return rate' },
+    return_type: { type: 'enum', values: ['pending', 'fixed_total', 'fixed_annual', 'fixed_weekly'], label: 'return type' }, return_rate: { type: 'number', min: 0, max: 1000, label: 'return rate' },
     return_note: { max: 500, label: 'return note' }, return_approved: { type: 'bool' }, terms: { type: 'text', max: 10000 }, risk_info: { type: 'text', max: 5000 },
     required_docs: { max: 500, label: 'required documents' }, property_id: { type: 'int', label: 'property' }, available_from: { type: 'date' }, available_to: { type: 'date' },
     status: { type: 'enum', values: ['active', 'inactive'] }, sort: { type: 'int', min: 0, max: 1000 },
@@ -595,7 +615,7 @@ function register(r) {
     const range = [from.toISOString(), to.toISOString()];
     const defs = {
       investors: {
-        sql: `SELECT u.*, (SELECT COALESCE(SUM(amount_usd),0) FROM investments i WHERE i.user_id=u.id AND i.status IN (${inList(FUNDED)})) AS invested FROM users u WHERE u.role='investor' AND u.created_at>=? AND u.created_at<? ORDER BY u.id`,
+        sql: `SELECT u.*, (SELECT COALESCE(SUM(amount_usd),0) FROM investments i WHERE i.user_id=u.id AND i.status IN (${inList(FUNDED)})) AS invested FROM users u WHERE u.role='investor' AND u.status<>'deleted' AND u.created_at>=? AND u.created_at<? ORDER BY u.id`,
         cols: [{ label: 'ID', key: 'id' }, { label: 'First name', key: 'first_name' }, { label: 'Last name', key: 'last_name' }, { label: 'Email', key: 'email' }, { label: 'Phone', key: 'phone' }, { label: 'Country', key: 'country' }, { label: 'Status', key: 'status' }, { label: 'KYC', key: 'kyc_status' }, { label: 'Email verified', get: (r2) => (r2.email_verified_at ? 'yes' : 'no') }, { label: 'Invested (USD)', key: 'invested' }, { label: 'Registered', key: 'created_at' }],
       },
       investments: {
@@ -722,7 +742,7 @@ function register(r) {
   r.get('/api/admin/lookups', async (ctx) => {
     A.requireAdmin(ctx);
     const [investors, properties, plans, pay] = await Promise.all([
-      db.all("SELECT id, first_name, last_name, email FROM users WHERE role='investor' ORDER BY first_name LIMIT 1000"),
+      db.all("SELECT id, first_name, last_name, email FROM users WHERE role='investor' AND status<>'deleted' ORDER BY first_name LIMIT 1000"),
       db.all('SELECT id, name FROM properties ORDER BY name'),
       db.all('SELECT id, name, property_id FROM plans ORDER BY sort'),
       S.getSetting('payments'),

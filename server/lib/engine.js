@@ -53,6 +53,10 @@ function returnTerms(plan) {
 function expectedReturn(terms, amount, start, maturity) {
   if (!terms.approved) return null;
   if (terms.type === 'fixed_total') return round((amount * terms.rate) / 100);
+  if (terms.type === 'fixed_weekly') {
+    const weeks = (new Date(maturity) - new Date(start)) / (7 * 86400000);
+    return round(((amount * terms.rate) / 100) * weeks);
+  }
   if (terms.type === 'fixed_annual') {
     const days = (new Date(maturity) - new Date(start)) / 86400000;
     return round(((amount * terms.rate) / 100) * (days / 365));

@@ -238,7 +238,7 @@ function register(r) {
       ['Investor', `${ctx.user.first_name} ${ctx.user.last_name}`], ['Investment ID', i.ref], ['Property', i.property_name], ['Plan', i.plan_name],
       ['Amount', `$${Number(i.amount_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} (${i.crypto_amount} ${i.currency})`],
       ['Transaction hash', i.tx_hash], ['Start date', E.fmtDate(i.start_date)], ['Maturity date', E.fmtDate(i.maturity_date)],
-      ['Return terms', terms.approved ? `${terms.rate}% ${terms.type === 'fixed_annual' ? 'per year' : 'total'}` : (terms.note || 'Pending legal approval')],
+      ['Return terms', terms.approved ? `${terms.rate}% ${{ fixed_annual: 'per year', fixed_weekly: 'per week' }[terms.type] || 'total'}` : (terms.note || 'Pending legal approval')],
       ['Status', E.LABELS[i.status]],
     ], 'This certificate records your participation as held in EstateInvest records. It is subject to the Investment Terms, Investor Agreement and Risk Disclosure you accepted.'), 'text/html; charset=utf-8');
   });

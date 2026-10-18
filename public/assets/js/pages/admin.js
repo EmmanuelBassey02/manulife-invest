@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, DEV_LABEL,
-  duration, empty, uploadFile, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText,
+  duration, empty, uploadFile, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText, pctText, returnPeriod,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { bars } from '../charts.js';
@@ -94,7 +94,7 @@ export async function investor(ctx) {
   return {
     title: `${u.first_name} ${u.last_name}`,
     html: `<nav class="crumbs"><a href="/admin/investors">Investors</a>${icon('chevronRight')}<span>${esc(u.first_name)} ${esc(u.last_name)}</span></nav>
-    ${head(`${u.first_name} ${u.last_name}`, u.email, `${u.status === 'active' ? '<button class="btn btn--danger-ghost" data-status="suspended">Suspend account</button>' : '<button class="btn btn--gold" data-status="active">Reactivate account</button>'}<button class="btn btn--ghost" data-doc>${icon('upload')} Issue document</button>`)}
+    ${head(`${u.first_name} ${u.last_name}`, u.email, `${u.status === 'active' ? '<button class="btn btn--danger-ghost" data-status="suspended">Suspend account</button>' : '<button class="btn btn--gold" data-status="active">Reactivate account</button>'}<button class="btn btn--danger-ghost" data-delete-member>Delete member</button><button class="btn btn--ghost" data-doc>${icon('upload')} Issue document</button>`)}
     <div class="grid grid--profile">
       <section class="card profile"><span class="avatar avatar--lg">${esc(initials(u))}</span><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><p class="muted">${esc(u.email)}</p>
         <dl class="kv"><div><dt>Phone</dt><dd>${esc(u.phone || '—')}</dd></div><div><dt>Country</dt><dd>${esc(u.country || '—')}</dd></div><div><dt>Account</dt><dd>${badge(u.status)}</dd></div>
@@ -116,6 +116,20 @@ export async function investor(ctx) {
         if (!reason) return;
         try { await api.post(`/api/admin/investors/${u.id}/status`, { status, reason }); toast(status === 'suspended' ? 'Account suspended.' : 'Account reactivated.'); ctx.reload(); }
         catch (err) { toast(err.message, 'bad'); }
+      });
+      root.querySelector('[data-delete-member]')?.addEventListener('click', async () => {
+        const confirmed = await confirmDialog({
+          title: 'ARE YOU SURE YOU WANT TO DELETE THIS MEMBER?',
+          message: 'This action cannot be undone. The member will lose access, but their financial and audit records will be retained.',
+          confirm: 'OK',
+          tone: 'danger',
+        });
+        if (!confirmed) return;
+        try {
+          await api.del(`/api/admin/investors/${u.id}`);
+          toast('Member deleted.');
+          navigate('/admin/investors');
+        } catch (err) { toast(err.message, 'bad'); }
       });
       root.querySelector('[data-doc]').addEventListener('click', () => issueDocModal({ userId: u.id, investments: d.investments }, () => ctx.reload()));
     },
@@ -271,7 +285,7 @@ export async function investment(ctx) {
         <div><dt>Amount</dt><dd>${money(i.amount_usd, { cents: true })}<br><small class="muted">${num(i.crypto_amount, 8)} ${esc(i.currency)} · ${esc(i.network)}</small></dd></div>
         <div><dt>Plan</dt><dd>${esc(i.plan_name)} (${esc(duration(d.plan))})</dd></div><div><dt>Created</dt><dd>${dateTime(i.created_at)}</dd></div>
         <div><dt>Start</dt><dd>${date(i.start_date)}</dd></div><div><dt>Maturity</dt><dd>${date(i.maturity_date)}</dd></div>
-        <div><dt>Return terms (at investment)</dt><dd>${rt.approved ? `${rt.rate}% ${rt.type === 'fixed_annual' ? 'p.a.' : 'total'}` : esc(rt.note || 'Pending approval')}</dd></div>
+        <div><dt>Return terms (at investment)</dt><dd>${rt.approved ? `${pctText(rt.rate)} ${returnPeriod(rt.type, true)}` : esc(rt.note || 'Pending approval')}</dd></div>
         <div><dt>Expected return</dt><dd>${i.expected_return != null ? money(i.expected_return, { cents: true }) : '—'}</dd></div>
         <div><dt>Tx hash</dt><dd class="mono">${esc(shortHash(i.tx_hash, 12))}</dd></div></dl></section>
       <section class="card"><h2 class="card__title">Change status</h2>
@@ -470,11 +484,12 @@ export async function plans(ctx) {
     body: `<form class="form" data-f novalidate><div class="form-grid">
       ${field({ name: 'name', label: 'Plan name', required: true, value: pl?.name || '', attrs: 'maxlength="100"' })}
       ${field({ name: 'property_id', label: 'Property', value: pl?.property_id || '', options: [['', 'All properties'], ...L.properties.map((p) => [p.id, p.name])] })}
+      ${field({ name: 'description', label: 'Short description', full: true, value: pl?.description || '', attrs: 'maxlength="300"' })}
       ${field({ name: 'duration_months', label: 'Duration (months)', type: 'number', value: pl?.duration_months ?? '', hint: 'Use months, or days for custom terms.', attrs: 'min="1" max="240"' })}
       ${field({ name: 'duration_days', label: 'Duration (days)', type: 'number', value: pl?.duration_days ?? '', attrs: 'min="1" max="7300"' })}
       ${field({ name: 'min_amount', label: 'Minimum (USD)', type: 'number', required: true, value: pl?.min_amount ?? '', attrs: 'min="1"' })}
       ${field({ name: 'max_amount', label: 'Maximum (USD)', type: 'number', value: pl?.max_amount ?? '', attrs: 'min="1"' })}
-      ${field({ name: 'return_type', label: 'Return structure', value: pl?.return_type || 'pending', options: [['pending', 'Pending approval'], ['fixed_total', 'Fixed % over the term'], ['fixed_annual', 'Fixed % per year (pro-rated)']] })}
+      ${field({ name: 'return_type', label: 'Return structure', value: pl?.return_type || 'pending', options: [['pending', 'Pending approval'], ['fixed_weekly', 'Fixed % per week'], ['fixed_total', 'Fixed % over the term'], ['fixed_annual', 'Fixed % per year (pro-rated)']] })}
       ${field({ name: 'return_rate', label: 'Return rate (%)', type: 'number', value: pl?.return_rate ?? '', attrs: 'min="0" max="1000" step="0.01"' })}
       ${field({ name: 'return_note', label: 'Return note shown to investors', full: true, value: pl?.return_note || '', attrs: 'maxlength="500"' })}
       ${field({ name: 'terms', label: 'Plan terms', type: 'textarea', full: true, rows: 3, value: pl?.terms || '' })}
@@ -501,7 +516,7 @@ export async function plans(ctx) {
     html: `${head('Investment plans', 'Configure durations, limits and approved return rules.', `<button class="btn btn--gold" data-new>${icon('plus')} Create plan</button>`)}
     <section class="card card--table"><div class="table-wrap"><table class="table"><thead><tr><th>Plan</th><th>Duration</th><th class="num">Min</th><th class="num">Max</th><th>Return</th><th>Property</th><th>Status</th><th class="num">Investments</th><th></th></tr></thead><tbody>
       ${items.map((pl) => `<tr><td><strong>${esc(pl.name)}</strong></td><td>${esc(duration(pl))}</td><td class="num">${money(pl.min_amount)}</td><td class="num">${pl.max_amount ? money(pl.max_amount) : '—'}</td>
-      <td>${pl.return_approved ? `${pl.return_rate}% ${pl.return_type === 'fixed_annual' ? 'p.a.' : 'total'} ${badge('approved')}` : `<span class="muted">${pl.return_rate != null ? `${pl.return_rate}% (not approved)` : 'Pending'}</span>`}</td>
+      <td>${pl.return_approved ? `${pctText(pl.return_rate)} ${returnPeriod(pl.return_type, true)} ${badge('approved')}` : `<span class="muted">${pl.return_rate != null ? `${pl.return_rate}% (not approved)` : 'Pending'}</span>`}</td>
       <td>${esc(pl.property_name || 'All')}</td><td>${badge(pl.status)}</td><td class="num">${pl.investment_count}</td><td><button class="btn btn--ghost btn--sm" data-edit="${pl.id}">Edit</button> <button class="btn btn--ghost btn--sm" data-del="${pl.id}">Delete</button></td></tr>`).join('')}
     </tbody></table></div></section>`,
     mount(root) {

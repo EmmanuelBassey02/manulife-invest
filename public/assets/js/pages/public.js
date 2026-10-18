@@ -1,5 +1,5 @@
 import { api, qs } from '../api.js';
-import { esc, icon, money, date, md, bindForm, field, toast, modal, TYPE_LABEL, DEV_LABEL, duration, empty, fileSize, debounce } from '../ui.js';
+import { esc, icon, money, moneyAuto, pctText, returnPeriod, planEarnings, PLAN_ICONS, date, md, bindForm, field, toast, modal, TYPE_LABEL, DEV_LABEL, empty, fileSize, debounce } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { state, navigate } from '../app.js';
 
@@ -20,15 +20,19 @@ export function propertyCard(p, base = '/properties') {
 }
 
 function returnText(r) {
-  if (r && r.approved) return `${r.rate}% ${r.type === 'fixed_annual' ? 'per year' : 'over the term'}`;
+  if (r && r.approved) return `${pctText(r.rate)} ${returnPeriod(r.type)}`;
   return 'Pending legal approval';
 }
 
 export function plansTable(plans, { action } = {}) {
   if (!plans.length) return empty('No plans available', 'Investment plans will appear here once they are published.');
-  return `<div class="table-wrap"><table class="table table--plans"><thead><tr><th>Plan</th><th>Duration</th><th>Minimum</th><th>Maximum</th><th>Return structure</th><th>Status</th>${action ? '<th><span class="sr-only">Action</span></th>' : ''}</tr></thead><tbody>
-    ${plans.map((p) => `<tr><td><strong>${esc(p.name)}</strong>${p.property_name ? `<br><small class="muted">${esc(p.property_name)} only</small>` : ''}</td><td>${esc(duration(p))}</td><td>${money(p.min_amount)}</td><td>${p.max_amount ? money(p.max_amount) : 'No limit'}</td>
-    <td>${p.returns.approved ? esc(returnText(p.returns)) : `<span class="muted">${esc(returnText(p.returns))}</span>`}</td><td><span class="badge badge--ok">Open</span></td>${action ? `<td>${action(p)}</td>` : ''}</tr>`).join('')}
+  const row = (p, i) => {
+    const e = planEarnings(p);
+    return `<tr><td><div class="plan-cell"><span class="plan-cell__no">${i + 1}</span><span class="plan-cell__ico">${icon(PLAN_ICONS[i % PLAN_ICONS.length])}</span><span class="plan-cell__txt"><strong>${esc(p.name)}</strong>${p.description ? `<small>${esc(p.description)}</small>` : ''}${p.property_name ? `<small>${esc(p.property_name)} only</small>` : ''}</span></div></td>
+      <td data-no-translate>${moneyAuto(p.min_amount)}</td><td data-no-translate>${e ? moneyAuto(e.weekly) : '—'}</td><td${e ? ' data-no-translate' : ''}>${e ? pctText(e.rate) : esc(returnText(p.returns))}</td><td data-no-translate>${e ? moneyAuto(e.monthly) : '—'}</td><td data-no-translate>${e ? moneyAuto(e.annual) : '—'}</td>${action ? `<td>${action(p)}</td>` : ''}</tr>`;
+  };
+  return `<div class="table-wrap"><table class="table table--plans table--partner"><thead><tr><th>Partnership Plan</th><th>Minimum Investment (USD)</th><th>Weekly Profit (Est.)</th><th>Weekly Return (Est. %)</th><th>Monthly Profit (Est.)<small>(4 weeks)</small></th><th>Annual Profit (Est.)<small>(52 weeks)</small></th>${action ? '<th><span class="sr-only">Action</span></th>' : ''}</tr></thead><tbody>
+    ${plans.map(row).join('')}
   </tbody></table></div>`;
 }
 
@@ -78,9 +82,9 @@ export async function home() {
 
     <section class="section section--navy section--plans">
       <div class="wrap">
-        <div class="section__head"><div><p class="kicker">Investment plans</p><h2>Investment plans</h2><p>Choose a fixed duration that suits you. Every plan is linked to real property and documented terms.</p></div><a class="link-arrow" href="/plans">Compare plans ${icon('arrow')}</a></div>
+        <div class="section__head"><div><p class="kicker">Investment plans</p><h2>Investment plans</h2><p>Choose the partnership plan that matches your investment size. Every plan is linked to real property and documented terms.</p></div><a class="link-arrow" href="/plans">Compare plans ${icon('arrow')}</a></div>
         ${plansTable(plans.items)}
-        <p class="note">${icon('info')} Return structures are published only after legal approval. Returns are never guaranteed and your capital is at risk.</p>
+        <p class="note">${icon('info')} Profit and return figures are estimates and are not guaranteed. Your capital is at risk.</p>
       </div>
     </section>
 
@@ -260,13 +264,10 @@ export async function plans() {
   const { items } = await api.get('/api/public/plans');
   return {
     title: 'Investment plans',
-    html: `${pageHead('Investment plans', 'Compare plan durations, minimums and terms.')}
+    html: `${pageHead('Investment plans', 'Compare partnership plans by minimum investment and estimated returns.')}
     <section class="section section--tight"><div class="wrap">
-      <div class="plan-cards">${items.map((p) => `<article class="plan"><header><h3>${esc(p.name)}</h3><p>${esc(duration(p))}</p></header>
-        <dl><div><dt>Minimum</dt><dd>${money(p.min_amount)}</dd></div><div><dt>Maximum</dt><dd>${p.max_amount ? money(p.max_amount) : 'No limit'}</dd></div><div><dt>Return structure</dt><dd>${esc(returnText(p.returns))}</dd></div><div><dt>Required</dt><dd>${esc(p.required_docs || 'Identity verification')}</dd></div></dl>
-        <p class="plan__terms">${esc(p.terms || '')}</p>
-        <a class="btn btn--gold btn--block" href="${state.user ? `/app/invest?plan=${p.id}` : `/register?next=${encodeURIComponent(`/app/invest?plan=${p.id}`)}`}">Choose ${esc(p.name)}</a></article>`).join('') || empty('No plans available', 'Plans will be published soon.')}</div>
-      <div class="callout">${icon('info')}<div><strong>About returns</strong><p>Return structures are set by the company and published only once legally approved. No return is guaranteed. Your maturity date is calculated from the day your payment is confirmed.</p></div></div>
+      ${plansTable(items, { action: (p) => `<a class="btn btn--gold btn--sm" href="${state.user ? `/app/invest?plan=${p.id}` : `/register?next=${encodeURIComponent(`/app/invest?plan=${p.id}`)}`}">Choose</a>` })}
+      <div class="callout">${icon('info')}<div><strong>About returns</strong><p>Profit and return figures are estimates based on each plan's minimum investment and are not guaranteed. Monthly profit covers 4 weeks and annual profit covers 52 weeks. Your maturity date is calculated from the day your payment is confirmed.</p></div></div>
     </div></section>`,
   };
 }

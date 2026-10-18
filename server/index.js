@@ -9,6 +9,7 @@ const { HttpError } = require('./lib/util');
 const { loadSession } = require('./lib/auth');
 const engine = require('./lib/engine');
 const { seed } = require('./db/seed');
+const { ensurePartnershipPlans } = require('./db/plans');
 
 const router = new Router();
 for (const m of ['public', 'auth', 'investor', 'admin', 'webhooks', 'translation']) require(`./routes/${m}`).register(router);
@@ -119,6 +120,7 @@ function handleStatic(req, res, url) {
 async function start() {
   await db.init();
   await seed();
+  await ensurePartnershipPlans();
   const server = http.createServer((req, res) => {
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch { return send(res, 400, 'Bad request', 'text/plain'); }

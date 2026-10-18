@@ -1,6 +1,6 @@
 import { api, qs } from '../api.js';
 import {
-  esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, duration,
+  esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, duration, pctText, returnPeriod,
   empty, uploadFile, fileSize, copyText, shortHash, statusText, sentence,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
@@ -151,7 +151,7 @@ export async function investment(ctx) {
           <div><dt>Transaction hash</dt><dd class="mono">${i.tx_hash ? `<span title="${esc(i.tx_hash)}">${esc(shortHash(i.tx_hash, 12))}</span> <button class="icon-btn icon-btn--sm" data-copy="${esc(i.tx_hash)}" aria-label="Copy hash">${icon('copy')}</button>` : '—'}</dd></div>
           <div><dt>Payment date</dt><dd>${dateTime(d.payments.find((p) => p.status === 'confirmed' && p.kind === 'deposit')?.verified_at)}</dd></div>
           <div><dt>Start date</dt><dd>${date(i.start_date)}</dd></div><div><dt>Maturity date</dt><dd>${date(i.maturity_date)}</dd></div>
-          <div><dt>Return terms</dt><dd>${rt.approved ? `${rt.rate}% ${rt.type === 'fixed_annual' ? 'per year' : 'over the term'}` : esc(rt.note || 'Pending legal approval')}</dd></div>
+          <div><dt>Return terms</dt><dd>${rt.approved ? `${pctText(rt.rate)} ${returnPeriod(rt.type)}` : esc(rt.note || 'Pending legal approval')}</dd></div>
           <div><dt>Expected return</dt><dd>${i.expected_return != null ? money(i.expected_return, { cents: true }) : '—'}</dd></div>
         </dl>
       </section>
@@ -200,7 +200,7 @@ export async function invest(ctx) {
       return `<section class="card"><h2 class="card__title">1. Choose a property</h2>
         <div class="choice-grid">${o.properties.map((p) => `<label class="choice choice--prop"><input type="radio" name="property" value="${p.id}" ${st.property?.id === p.id ? 'checked' : ''}><span class="choice__media">${propertyVisual(p)}</span><span class="choice__body"><strong>${esc(p.name)}</strong><small>${esc(p.city)} · ${esc(TYPE_LABEL[p.type])} · from ${money(p.min_investment)}</small></span></label>`).join('') || empty('No properties are accepting investments', 'Check back soon.')}</div>
         <h2 class="card__title">2. Choose a plan</h2>
-        <div class="choice-grid choice-grid--plans" data-plans>${plansFor(st.property).map((pl) => `<label class="choice"><input type="radio" name="plan" value="${pl.id}" ${st.plan?.id === pl.id ? 'checked' : ''}><span class="choice__body"><strong>${esc(pl.name)}</strong><small>${esc(duration(pl))} · min ${money(pl.min_amount)}${pl.max_amount ? ` · max ${money(pl.max_amount)}` : ''}</small><small class="muted">${pl.returns.approved ? `${pl.returns.rate}% ${pl.returns.type === 'fixed_annual' ? 'p.a.' : 'total'}` : 'Return structure pending legal approval'}</small></span></label>`).join('')}</div>
+        <div class="choice-grid choice-grid--plans" data-plans>${plansFor(st.property).map((pl) => `<label class="choice"><input type="radio" name="plan" value="${pl.id}" ${st.plan?.id === pl.id ? 'checked' : ''}><span class="choice__body"><strong>${esc(pl.name)}</strong>${pl.description ? `<small>${esc(pl.description)}</small>` : ''}<small><span>Minimum</span> ${money(pl.min_amount)}${pl.max_amount ? ` · max ${money(pl.max_amount)}` : ''}</small><small class="muted">${pl.returns.approved ? `${pctText(pl.returns.rate)} <span>${returnPeriod(pl.returns.type)}</span>${pl.returns.type === 'fixed_weekly' ? ' <span>(est.)</span>' : ''}` : 'Return structure pending legal approval'}</small></span></label>`).join('')}</div>
         <p class="form-error" data-err hidden></p>
         <div class="form__actions"><a class="btn btn--ghost" href="/app">Cancel</a><button class="btn btn--gold" data-next>Continue ${icon('arrow')}</button></div></section>`;
     }
@@ -208,7 +208,7 @@ export async function invest(ctx) {
       const min = minFor();
       return `<section class="card"><h2 class="card__title">How much would you like to invest?</h2>
         <form class="form" data-amt novalidate>
-          <div class="summary"><div><small>Property</small><strong>${esc(st.property.name)}</strong></div><div><small>Plan</small><strong>${esc(st.plan.name)} · ${esc(duration(st.plan))}</strong></div><div><small>Limits</small><strong>${money(min)} – ${st.plan.max_amount ? money(st.plan.max_amount) : 'no maximum'}</strong></div></div>
+          <div class="summary"><div><small>Property</small><strong>${esc(st.property.name)}</strong></div><div><small>Plan</small><strong><span>${esc(st.plan.name)}</span> · ${esc(duration(st.plan))}</strong></div><div><small>Limits</small><strong>${money(min)} – ${st.plan.max_amount ? money(st.plan.max_amount) : 'no maximum'}</strong></div></div>
           <div class="field field--money"><label for="amt">Amount (USD)</label><div class="money-input"><span>$</span><input id="amt" name="amount_usd" type="number" inputmode="decimal" required min="${min}" ${st.plan.max_amount ? `max="${st.plan.max_amount}"` : ''} step="0.01" value="${st.amount ?? ''}" placeholder="${min}"></div><p class="field__hint">Your maturity date is set when your payment is confirmed.</p><p class="field__error" hidden></p></div>
           ${check({ name: 'accept_terms', required: true, checked: st.accept, html: true, label: 'I have read and accept the <a href="/legal/investment_terms" target="_blank">Investment Terms</a>, <a href="/legal/risk" target="_blank">Risk Disclosure</a> and <a href="/legal/crypto" target="_blank">Crypto Payment Disclosure</a>. I understand returns are not guaranteed.' })}
           <p class="form-error" hidden></p>

@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS plans (
   return_rate REAL,
   return_note TEXT,
   return_approved INTEGER NOT NULL DEFAULT 0,
+  description TEXT,
   terms TEXT,
   risk_info TEXT,
   required_docs TEXT,

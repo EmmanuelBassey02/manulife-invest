@@ -21,7 +21,7 @@ function serializeProperty(p, extra = {}) {
 
 function serializePlan(pl) {
   return {
-    id: pl.id, name: pl.name, duration_months: pl.duration_months, duration_days: pl.duration_days,
+    id: pl.id, name: pl.name, description: pl.description || null, duration_months: pl.duration_months, duration_days: pl.duration_days,
     min_amount: Number(pl.min_amount), max_amount: pl.max_amount != null ? Number(pl.max_amount) : null,
     returns: returnTerms(pl), terms: pl.terms, risk_info: pl.risk_info, required_docs: pl.required_docs,
     property_id: pl.property_id, property_name: pl.property_name || null, available_from: pl.available_from,

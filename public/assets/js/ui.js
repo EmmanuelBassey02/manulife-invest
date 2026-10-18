@@ -27,7 +27,17 @@ export const ago = (d) => {
 export const shortHash = (h, n = 8) => (!h ? '—' : h.length <= n * 2 + 1 ? h : `${h.slice(0, n)}…${h.slice(-6)}`);
 export const titleCase = (s) => String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 export const sentence = (s) => { const t = String(s || '').replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
-export const duration = (p) => (p.duration_months ? (p.duration_months % 12 === 0 && p.duration_months >= 12 ? `${p.duration_months / 12} year${p.duration_months > 12 ? 's' : ''}` : `${p.duration_months} month${p.duration_months > 1 ? 's' : ''}`) : `${p.duration_days} days`);
+export const duration = (p) => (p.duration_months ? (p.duration_months % 12 === 0 && p.duration_months >= 12 ? `${p.duration_months / 12} year${p.duration_months > 12 ? 's' : ''}` : `${p.duration_months} month${p.duration_months > 1 ? 's' : ''}`) : p.duration_days % 7 === 0 ? `${p.duration_days / 7} weeks` : `${p.duration_days} days`);
+export const moneyAuto = (n) => money(n, { cents: !Number.isInteger(n) });
+export const pctText = (n) => `${Number(n).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
+export const returnPeriod = (type, short = false) => ({ fixed_annual: short ? 'p.a.' : 'per year', fixed_weekly: short ? 'p.w.' : 'per week' }[type] || (short ? 'total' : 'over the term'));
+/** Estimated profit on the plan minimum: weekly, 4-week month, 52-week year. Null unless the plan pays a weekly return. */
+export function planEarnings(p) {
+  if (!p.returns?.approved || p.returns.type !== 'fixed_weekly') return null;
+  const weekly = Math.round(p.min_amount * p.returns.rate) / 100;
+  return { rate: p.returns.rate, weekly, monthly: Math.round(weekly * 4 * 100) / 100, annual: Math.round(weekly * 52 * 100) / 100 };
+}
+export const PLAN_ICONS = ['sprout', 'chart', 'briefcase', 'chart', 'diamond', 'target', 'crown', 'bank', 'globe', 'star'];
 export const TYPE_LABEL = { residential: 'Residential', commercial: 'Commercial', mixed_use: 'Mixed use', hospitality: 'Hospitality' };
 export const DEV_LABEL = { planning: 'Planning', under_development: 'Under development', completed: 'Completed', operational: 'Operational' };
 
@@ -97,6 +107,13 @@ const P = {
   trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>',
   pie: '<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15Z"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/>',
+  sprout: '<path d="M12 21v-9"/><path d="M12 12c0-4-3-6-7-6 0 4 3 6 7 6Z"/><path d="M12 14c0-3 2.5-5 6-5 0 3-2.5 5-6 5Z"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>',
+  diamond: '<path d="M6 4h12l4 5-10 11L2 9l4-5Z"/><path d="M2 9h20M9 4l3 5 3-5M12 20 9 9M12 20l3-11"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+  crown: '<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8Z"/>',
+  bank: '<path d="m3 9 9-5 9 5"/><path d="M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 21h18M3 18h18"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3Z"/>',
 };
 export const icon = (name, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
 

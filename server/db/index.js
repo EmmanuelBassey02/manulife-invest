@@ -86,6 +86,13 @@ const db = {
     }
     this.driver = /^postgres(ql)?:\/\//.test(config.DATABASE_URL) ? makePg() : await makeSqlite();
     await this.driver.exec(schemaFor(this.driver.kind));
+    await this.ensureColumn('plans', 'description', 'TEXT');
+  },
+  /** Adds a column to a database created before the column existed. */
+  async ensureColumn(table, column, type) {
+    if (this.driver.kind === 'pg') { await this.driver.exec(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${type}`); return; }
+    const columns = await this.driver.all(`PRAGMA table_info(${table})`);
+    if (!columns.some((c) => c.name === column)) await this.driver.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   },
   get kind() { return this.driver.kind; },
   all(s, p) { return this.driver.all(s, p); },
