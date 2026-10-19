@@ -50,19 +50,26 @@ function makePg() {
   const pool = new pg.Pool({
     connectionString: config.DATABASE_URL,
     ssl: process.env.PGSSL === '1' ? { rejectUnauthorized: false } : undefined,
+    max: 5, idleTimeoutMillis: 10000, connectionTimeoutMillis: 15000, keepAlive: true,
   });
+  // Without a listener, a connection the server dropped while idle would crash the process.
+  pool.on('error', (error) => console.error('[pg] idle connection error:', error.message));
   // node-postgres returns COUNT/SUM as strings; parse numerics as JS numbers.
   pg.types.setTypeParser(20, (v) => Number(v));
   pg.types.setTypeParser(1700, (v) => Number(v));
   const conv = (s) => { let i = 0; return s.replace(/\?/g, () => '$' + ++i); };
-  const wrap = (q) => ({
+  const transient = (e) => /Connection terminated|ECONNRESET|EPIPE|ETIMEDOUT|server closed the connection/i.test(String(e && e.message)) || ['57P01', '08006', '08003', '08001'].includes(e && e.code);
+  // A pooled connection can be dead by the time it is reused; retry once on a fresh one.
+  const attempt = async (retry, fn) => { try { return await fn(); } catch (e) { if (retry && transient(e)) return fn(); throw e; } };
+  const wrap = (q, retry = false) => ({
     kind: 'pg',
-    async all(s, p) { return (await q.query(conv(s), clean(p))).rows; },
-    async get(s, p) { return (await q.query(conv(s), clean(p))).rows[0] || null; },
-    async run(s, p) { const r = await q.query(conv(s), clean(p)); return { changes: r.rowCount }; },
-    async exec(s) { await q.query(s); },
+    async all(s, p) { return attempt(retry, async () => (await q.query(conv(s), clean(p))).rows); },
+    async get(s, p) { return attempt(retry, async () => (await q.query(conv(s), clean(p))).rows[0] || null); },
+    async run(s, p) { return attempt(retry, async () => ({ changes: (await q.query(conv(s), clean(p))).rowCount })); },
+    async exec(s) { await attempt(retry, () => q.query(s)); },
   });
-  const api = wrap(pool);
+  const api = wrap(pool, true);
+  api.pool = pool;
   api.tx = async (fn) => {
     const c = await pool.connect();
     try { await c.query('BEGIN'); const r = await fn(wrap(c)); await c.query('COMMIT'); return r; }
@@ -119,4 +126,4 @@ async function update(h, table, id, obj) {
   await h.run(`UPDATE ${ident(table)} SET ${keys.map((k) => k + '=?').join(',')} WHERE id=?`, [...keys.map((k) => obj[k]), id]);
 }
 
-module.exports = { db, insert, update, schemaFor };
+module.exports = { db, insert, update, schemaFor, makePg };

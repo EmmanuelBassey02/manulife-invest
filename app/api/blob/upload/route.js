@@ -72,6 +72,7 @@ export async function POST(request) {
     });
     return NextResponse.json(result);
   } catch (error) {
+    console.error('[blob-upload]', error);
     const status = error instanceof HttpError ? error.status : 400;
     return NextResponse.json({ error: error.message || 'Upload failed.' }, { status });
   }
