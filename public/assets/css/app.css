@@ -698,7 +698,7 @@ button { font: inherit; color: inherit; }
 .drop:hover, .drop.is-over { border-color: var(--gold); background: #f7fbf8; }
 .drop:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .drop.is-done { border-style: solid; border-color: var(--ok); background: var(--ok-l); }
-.drop.is-busy { opacity: .7; pointer-events: none; }
+.drop.is-busy { pointer-events: none; }
 .drop__status { display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 600; color: var(--ok); min-height: 1.4em; }
 .checklist { list-style: none; margin: 0 0 18px; padding: 0; }
 .checklist li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line-2); }

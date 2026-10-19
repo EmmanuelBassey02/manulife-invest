@@ -490,14 +490,24 @@ export async function kyc(ctx) {
             return;
           }
           drop.classList.add('is-busy');
+          drop.setAttribute('aria-busy', 'true');
+          status.innerHTML = `<span class="spinner spinner--sm"></span> Uploading ${files.length} ${files.length === 1 ? 'file' : 'files'}…`;
           const docType = root.querySelector('input[name=doc_type]:checked')?.value || (kind === 'selfie' ? 'selfie' : undefined);
-          const { done, error } = await uploadMany(files, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` }, async (f, file, index) => {
-            status.innerHTML = `<span class="spinner spinner--sm"></span> Uploading ${index + 1} of ${files.length}…`;
-            const res = await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
-            list.insertAdjacentHTML('beforeend', uploadedItem(res.document));
-            return res;
-          });
-          drop.classList.remove('is-busy');
+          let done = [];
+          let error = null;
+          try {
+            ({ done, error } = await uploadMany(files, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` }, async (f, file, index) => {
+              status.innerHTML = `<span class="spinner spinner--sm"></span> Saving file ${index + 1} of ${files.length}…`;
+              const res = await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
+              list.insertAdjacentHTML('beforeend', uploadedItem(res.document));
+              return res;
+            }));
+          } catch (uploadError) {
+            error = uploadError;
+          } finally {
+            drop.classList.remove('is-busy');
+            drop.removeAttribute('aria-busy');
+          }
           refresh();
           status.innerHTML = error ? `<span class="text-bad">${icon('alert')} ${esc(error.message)}</span>` : `${icon('check')} ${done.length} ${done.length === 1 ? 'file' : 'files'} uploaded`;
           if (done.length) toast(done.length === 1 ? 'Document uploaded.' : `${done.length} documents uploaded.`);
