@@ -36,7 +36,31 @@ export async function POST(request) {
       request,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
         const origin = request.headers.get('origin');
-        if (origin && origin !== new URL(request.url).origin) throw new HttpError(403, 'Request blocked.');
+        if (origin) {
+          let originUrl;
+          try { originUrl = new URL(origin); } catch { throw new HttpError(403, 'Request blocked.'); }
+          const requestUrl = new URL(request.url);
+          const hosts = [
+            requestUrl.host,
+            request.headers.get('host'),
+            config.isVercel ? request.headers.get('x-forwarded-host')?.split(',')[0].trim() : null,
+          ].filter(Boolean);
+          const forwardedProto = config.isVercel ? request.headers.get('x-forwarded-proto')?.split(',')[0].trim() : null;
+          const protocols = [requestUrl.protocol, forwardedProto]
+            .filter((protocol) => protocol === 'http:' || protocol === 'https:');
+          const allowedOrigins = new Set([requestUrl.origin]);
+          for (const host of hosts) for (const protocol of protocols) allowedOrigins.add(`${protocol}//${host}`);
+          if (!allowedOrigins.has(originUrl.origin)) {
+            console.warn('[blob-upload] origin mismatch', {
+              origin: originUrl.origin,
+              requestOrigin: requestUrl.origin,
+              host: request.headers.get('host'),
+              forwardedHost: request.headers.get('x-forwarded-host'),
+              forwardedProto: request.headers.get('x-forwarded-proto'),
+            });
+            throw new HttpError(403, 'Request blocked.');
+          }
+        }
         await auth.loadSession(ctx);
         const details = JSON.parse(clientPayload || '{}');
         const purpose = uploadPurposes[details.purpose];
