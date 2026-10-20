@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS upload_tokens (
   used_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS payout_wallets (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  currency TEXT NOT NULL,
+  network TEXT NOT NULL,
+  address TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (user_id, currency, network)
+);
+
 CREATE TABLE IF NOT EXISTS kyc_submissions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),

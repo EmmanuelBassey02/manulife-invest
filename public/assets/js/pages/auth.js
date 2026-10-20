@@ -24,7 +24,7 @@ function bindPw(root) {
 export async function login(ctx) {
   return {
     title: 'Sign in',
-    html: `<p class="auth__top">New to EstateInvest? <a href="/register${ctx.query.next ? `?next=${encodeURIComponent(ctx.query.next)}` : ''}">Create account ${icon('arrow')}</a></p><div class="auth__card"><span class="auth__rule"></span><h1>Welcome back</h1><p class="muted">Sign in to your investor or admin account.</p>
+    html: `<p class="auth__top">New to SapronLife? <a href="/register${ctx.query.next ? `?next=${encodeURIComponent(ctx.query.next)}` : ''}">Create account ${icon('arrow')}</a></p><div class="auth__card"><span class="auth__rule"></span><h1>Welcome back</h1><p class="muted">Sign in to your investor or admin account.</p>
     <form class="form" data-f novalidate>
       ${field({ name: 'email', label: 'Email address', type: 'email', required: true, ico: 'mail', placeholder: 'you@example.com', attrs: 'autocomplete="email" autofocus' })}
       <div class="field"><label for="pw">Password</label><div class="pw inp"><span class="inp__ico">${icon('lock')}</span><input id="pw" name="password" type="password" required autocomplete="current-password" maxlength="128" placeholder="Enter your password">${pwToggle}</div><p class="field__error" hidden></p></div>

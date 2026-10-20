@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, duration, pctText, returnPeriod,
-  empty, uploadFile, uploadMany, fileSize, copyText, shortHash, statusText, sentence,
+  empty, uploadFile, uploadMany, fileSize, copyText, shortHash, statusText, sentence, label,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { qrSvg } from '../qr.js';
@@ -135,12 +135,12 @@ export async function investment(ctx) {
   const site = state.site || {};
   const pay = d.payments.find((p) => p.kind === 'deposit' && ['awaiting', 'submitted'].includes(p.status));
   const netName = (site.currencies || []).find((c) => c.code === i.currency)?.networks.find((n) => n.code === i.network)?.name;
-  const canRedeem = i.status === 'matured' && site.redemptions_enabled && !d.redemptions.some((r) => ['requested', 'under_review', 'approved'].includes(r.status));
+  const canWithdraw = i.status === 'matured' && site.redemptions_enabled && !d.redemptions.some((r) => ['requested', 'under_review', 'approved'].includes(r.status));
   const rt = i.return_terms || {};
   return {
     title: i.ref,
     html: `<nav class="crumbs"><a href="/app/investments">Investments</a>${icon('chevronRight')}<span>${esc(i.ref)}</span></nav>
-    ${head(i.ref, `${i.property_name} · ${i.plan_name}`, `${badge(i.status, i.status_label)}${canRedeem ? `<button class="btn btn--gold" data-redeem>${icon('refresh')} Request redemption</button>` : ''}`)}
+    ${head(i.ref, `${i.property_name} · ${i.plan_name}`, `${badge(i.status, i.status_label)}${canWithdraw ? `<button class="btn btn--gold" data-withdraw>${icon('wallet')} Withdraw</button>` : ''}`)}
     ${pay ? paymentPanel(pay, i, netName, site.demo_addresses) : ''}
     <div class="grid grid--dash">
       <section class="card"><h2 class="card__title">Investment details</h2>
@@ -162,25 +162,28 @@ export async function investment(ctx) {
     <section class="card"><header class="card__head"><h2 class="card__title">Documents</h2></header>
       <ul class="doclist">
         ${['payment_confirmed', 'active', 'maturing', 'matured', 'completed', 'redeemed'].includes(i.status) ? `<li>${icon('file')}<div><strong>Investment certificate</strong><small>Generated</small></div><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="/api/me/investments/${i.id}/certificate">View</a></li>` : ''}
-        ${d.payments.filter((p) => p.status === 'confirmed').map((p) => `<li>${icon('file')}<div><strong>${p.kind === 'redemption' ? 'Redemption confirmation' : 'Payment receipt'} ${esc(p.ref)}</strong><small>${date(p.verified_at)}</small></div><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="/api/me/payments/${p.id}/receipt">View</a></li>`).join('')}
-        ${d.documents.map((x) => `<li>${icon('file')}<div><strong>${esc(x.title)}</strong><small>${esc(sentence(x.category))} · ${date(x.created_at)}</small></div><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="/api/files/${x.file_id}">View</a></li>`).join('')}
+        ${d.payments.filter((p) => p.status === 'confirmed').map((p) => `<li>${icon('file')}<div><strong>${p.kind === 'redemption' ? 'Withdrawal confirmation' : 'Payment receipt'} ${esc(p.ref)}</strong><small>${date(p.verified_at)}</small></div><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="/api/me/payments/${p.id}/receipt">View</a></li>`).join('')}
+        ${d.documents.map((x) => `<li>${icon('file')}<div><strong>${esc(x.title)}</strong><small>${esc(label(x.category))} · ${date(x.created_at)}</small></div><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="/api/files/${x.file_id}">View</a></li>`).join('')}
         <li>${icon('file')}<div><strong>Investment Terms</strong><small>Applies to this plan</small></div><a class="btn btn--ghost btn--sm" target="_blank" href="/legal/investment_terms">View</a></li>
         <li>${icon('file')}<div><strong>Risk Disclosure</strong><small>Accepted at investment</small></div><a class="btn btn--ghost btn--sm" target="_blank" href="/legal/risk">View</a></li>
       </ul>
     </section>
-    ${d.redemptions.length ? `<section class="card card--table"><header class="card__head"><h2 class="card__title">Redemptions</h2></header><div class="table-wrap"><table class="table"><thead><tr><th>Reference</th><th class="num">Amount</th><th>To wallet</th><th>Status</th><th>Requested</th></tr></thead><tbody>
+    ${d.redemptions.length ? `<section class="card card--table"><header class="card__head"><h2 class="card__title">Withdrawals</h2></header><div class="table-wrap"><table class="table"><thead><tr><th>Reference</th><th class="num">Amount</th><th>To wallet</th><th>Status</th><th>Requested</th></tr></thead><tbody>
       ${d.redemptions.map((r) => `<tr><td>${esc(r.ref)}</td><td class="num">${money(r.amount_usd)}</td><td class="mono">${esc(shortHash(r.destination_wallet, 8))} (${esc(r.currency)})</td><td>${badge(r.status)}</td><td>${date(r.created_at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`,
     mount(root) {
       root.querySelectorAll('[data-copy]').forEach((b) => { if (!b.closest('[data-pay]')) b.addEventListener('click', () => copyText(b.dataset.copy)); });
       if (pay) bindPayment(root, () => ctx.reload());
-      root.querySelector('[data-redeem]')?.addEventListener('click', () => redemptionModal([i], () => ctx.reload()));
+      root.querySelector('[data-withdraw]')?.addEventListener('click', async () => {
+        const { items: wallets } = await api.get('/api/me/wallets');
+        withdrawalModal(i, wallets, () => navigate('/app/withdrawals'));
+      });
     },
   };
 }
 
 /* ------------------------------------------------------------------ invest flow */
 const STEPS = ['Select plan', 'Enter amount', 'Choose crypto', 'Payment', 'Confirmation'];
-const stepper = (n) => `<ol class="stepper">${STEPS.map((s, i) => `<li class="${i < n ? 'is-done' : i === n ? 'is-current' : ''}"><span>${i < n ? icon('check') : i + 1}</span><em>${s}</em></li>`).join('')}</ol>`;
+const stepper = (n) => `<ol class="stepper">${STEPS.map((s, i) => `<li class="${i < n ? 'is-done' : i === n ? 'is-current' : ''}"><span>${i < n ? icon('check') : i + 1}</span><em>${s}</em></li>`).join('')}</ol><p class="stepper__caption"><span>Step ${Math.min(n, STEPS.length - 1) + 1} of ${STEPS.length}</span> · <em>${STEPS[Math.min(n, STEPS.length - 1)]}</em></p>`;
 
 export async function invest(ctx) {
   const o = await api.get('/api/me/invest-options');
@@ -197,10 +200,12 @@ export async function invest(ctx) {
 
   function view() {
     if (st.step === 0) {
-      return `<section class="card"><h2 class="card__title">1. Choose a property</h2>
+      const planList = st.property ? plansFor(st.property) : o.plans;
+      return `<section class="card"><h2 class="card__title">1. Choose a plan</h2>
+        <p class="muted small">These are the same plans shown on our website. Estimated profits are based on each plan's minimum investment.</p>
+        <div data-plans>${Pub.plansTable(planList, { selectedId: st.plan?.id, action: (pl, selected) => `<button type="button" class="btn btn--sm ${selected ? 'btn--gold' : 'btn--ghost'}" data-pick-plan="${pl.id}" aria-pressed="${selected}">${selected ? `${icon('check')} Selected` : 'Select'}</button>` })}</div>
+        <h2 class="card__title" id="choose-property">2. Choose a property</h2>
         <div class="choice-grid">${o.properties.map((p) => `<label class="choice choice--prop"><input type="radio" name="property" value="${p.id}" ${st.property?.id === p.id ? 'checked' : ''}><span class="choice__media">${propertyVisual(p)}</span><span class="choice__body"><strong>${esc(p.name)}</strong><small>${esc(p.city)} · ${esc(TYPE_LABEL[p.type])} · from ${money(p.min_investment)}</small></span></label>`).join('') || empty('No properties are accepting investments', 'Check back soon.')}</div>
-        <h2 class="card__title">2. Choose a plan</h2>
-        <div class="choice-grid choice-grid--plans" data-plans>${plansFor(st.property).map((pl) => `<label class="choice"><input type="radio" name="plan" value="${pl.id}" ${st.plan?.id === pl.id ? 'checked' : ''}><span class="choice__body"><strong>${esc(pl.name)}</strong>${pl.description ? `<small>${esc(pl.description)}</small>` : ''}<small><span>Minimum</span> ${money(pl.min_amount)}${pl.max_amount ? ` · max ${money(pl.max_amount)}` : ''}</small><small class="muted">${pl.returns.approved ? `${pctText(pl.returns.rate)} <span>${returnPeriod(pl.returns.type)}</span>${pl.returns.type === 'fixed_weekly' ? ' <span>(est.)</span>' : ''}` : 'Return structure pending legal approval'}</small></span></label>`).join('')}</div>
         <p class="form-error" data-err hidden></p>
         <div class="form__actions"><a class="btn btn--ghost" href="/app">Cancel</a><button class="btn btn--gold" data-next>Continue ${icon('arrow')}</button></div></section>`;
     }
@@ -236,19 +241,26 @@ export async function invest(ctx) {
       <div class="form__actions form__actions--center"><a class="btn btn--ghost" href="/app">Back to overview</a><a class="btn btn--gold" href="/app/investments/${st.result.investment_id}">View investment</a></div></section>`;
   }
 
-  function draw(root) {
+  function draw(root, { keepScroll = false } = {}) {
     root.querySelector('[data-flow]').innerHTML = stepper(st.step) + view();
     const area = root.querySelector('[data-flow]');
     if (st.step === 0) {
       area.querySelectorAll('input[name=property]').forEach((r) => r.addEventListener('change', () => {
         st.property = o.properties.find((p) => p.id === Number(r.value));
         if (st.plan && !plansFor(st.property).some((x) => x.id === st.plan.id)) st.plan = null;
-        draw(root);
+        draw(root, { keepScroll: true });
       }));
-      area.querySelectorAll('input[name=plan]').forEach((r) => r.addEventListener('change', () => { st.plan = o.plans.find((p) => p.id === Number(r.value)); }));
+      area.querySelectorAll('[data-pick-plan]').forEach((b) => b.addEventListener('click', () => {
+        const pl = o.plans.find((p) => p.id === Number(b.dataset.pickPlan));
+        st.plan = pl;
+        // A plan tied to one property selects that property.
+        if (pl.property_id) st.property = o.properties.find((p) => p.id === pl.property_id) || st.property;
+        draw(root, { keepScroll: true });
+        if (!st.property) root.querySelector('#choose-property')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
       area.querySelector('[data-next]')?.addEventListener('click', () => {
         const err = area.querySelector('[data-err]');
-        if (!st.property || !st.plan) { err.textContent = !st.property ? 'Choose a property to continue.' : 'Choose a plan to continue.'; err.hidden = false; return; }
+        if (!st.plan || !st.property) { err.textContent = !st.plan ? 'Choose a plan to continue.' : 'Choose a property to continue.'; err.hidden = false; return; }
         st.step = 1; draw(root);
       });
     }
@@ -275,7 +287,7 @@ export async function invest(ctx) {
     }
     if (st.step === 3) bindPayment(area, (what) => { if (what === 'cancelled') navigate('/app/investments'); else { st.step = 4; draw(root); } });
     area.querySelector('[data-back]')?.addEventListener('click', () => { st.step -= 1; draw(root); });
-    area.scrollIntoView({ block: 'start' });
+    if (!keepScroll) area.scrollIntoView({ block: 'start' });
   }
 
   return {
@@ -309,64 +321,155 @@ export async function transactions() {
 /* ------------------------------------------------------------------ documents */
 export async function documents() {
   const { items } = await api.get('/api/me/documents');
-  const legal = [['investment_terms', 'Investment Terms'], ['risk', 'Risk Disclosure'], ['investor_agreement', 'Investor Agreement'], ['terms', 'Terms & Conditions'], ['privacy', 'Privacy Policy'], ['redemption', 'Redemption Policy']];
+  const legal = [['investment_terms', 'Investment Terms'], ['risk', 'Risk Disclosure'], ['investor_agreement', 'Investor Agreement'], ['terms', 'Terms & Conditions'], ['privacy', 'Privacy Policy'], ['redemption', 'Withdrawal Policy']];
   return {
     title: 'Documents',
     html: `${head('Documents', 'Agreements, certificates, receipts and statements.')}
     <div class="grid grid--dash">
-      <section class="card"><h2 class="card__title">Your documents</h2>${items.length ? `<ul class="doclist">${items.map((d) => `<li>${icon('file')}<div><strong>${esc(d.title)}</strong><small>${esc(sentence(d.category))}${d.investment_ref ? ` · ${esc(d.investment_ref)}` : ''} · ${date(d.created_at)}</small></div>${d.url ? `<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="${esc(d.url)}">View</a>` : ''}</li>`).join('')}</ul>` : empty('No documents yet', 'Certificates and receipts appear once an investment is funded.')}</section>
+      <section class="card"><h2 class="card__title">Your documents</h2>${items.length ? `<ul class="doclist">${items.map((d) => `<li>${icon('file')}<div><strong>${esc(d.title)}</strong><small>${esc(label(d.category))}${d.investment_ref ? ` · ${esc(d.investment_ref)}` : ''} · ${date(d.created_at)}</small></div>${d.url ? `<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="${esc(d.url)}">View</a>` : ''}</li>`).join('')}</ul>` : empty('No documents yet', 'Certificates and receipts appear once an investment is funded.')}</section>
       <section class="card"><h2 class="card__title">Policies & disclosures</h2><ul class="doclist">${legal.map(([k, l]) => `<li>${icon('file')}<div><strong>${l}</strong></div><a class="btn btn--ghost btn--sm" target="_blank" href="/legal/${k}">Read</a></li>`).join('')}</ul></section>
     </div>`,
   };
 }
 
-/* ---------------------------------------------------------------- redemptions */
-function redemptionModal(eligible, done) {
-  const cur = (state.site?.currencies || []);
+/* ---------------------------------------------------------------- withdrawals */
+const OPEN_WITHDRAWAL = ['requested', 'under_review', 'approved'];
+const payoutOptions = () => (state.site?.currencies || []).flatMap((c) => c.networks.map((n) => ({ code: c.code, name: c.name, network: n.code, networkName: n.name })));
+const optionKey = (code, network) => `${code}|${network}`;
+const withdrawable = (i) => round2(i.amount_usd + (i.expected_return || 0));
+function round2(n) { return Math.round(Number(n) * 100) / 100; }
+
+/** Withdraw a matured investment. Defaults to the crypto and network the investor paid with, and to their saved wallet. */
+function withdrawalModal(inv, wallets, done) {
+  const options = payoutOptions();
+  if (!options.length) { toast('Withdrawals are not available at the moment.', 'bad'); return; }
+  const saved = Object.fromEntries(wallets.map((w) => [optionKey(w.currency, w.network), w.address]));
+  const same = options.find((o) => o.code === inv.currency && o.network === inv.network);
+  const first = same || options[0];
+  const max = withdrawable(inv);
   modal({
-    title: 'Request redemption',
-    body: `<form class="form" data-f novalidate><div class="form-grid">
-      ${field({ name: 'investment_id', label: 'Investment', required: true, full: true, options: eligible.map((i) => [i.id, `${i.ref} · ${i.property_name} · ${money(i.amount_usd)}`]) })}
-      ${field({ name: 'amount_usd', label: 'Amount (USD)', type: 'number', required: true, value: eligible[0]?.amount_usd + (eligible[0]?.expected_return || 0), attrs: 'min="1" step="0.01"' })}
-      ${field({ name: 'currency', label: 'Receive in', required: true, options: cur.map((c) => [c.code, `${c.name} (${c.code})`]) })}
-      ${field({ name: 'network', label: 'Network', required: true, options: (cur[0]?.networks || []).map((n) => [n.code, n.name]) })}
-      ${field({ name: 'destination_wallet', label: 'Destination wallet address', required: true, full: true, hint: 'Must be a wallet in your name on the network selected.', attrs: 'maxlength="120" autocomplete="off" spellcheck="false"' })}
-      ${field({ name: 'password', label: 'Confirm with your password', type: 'password', required: true, full: true, attrs: 'autocomplete="current-password"' })}
-    </div><div class="callout">${icon('info')}<div><p>Requests are reviewed by our team and may require additional security checks before payout.</p></div></div>
-    <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Submit request</button></div></form>`,
+    title: `Withdraw ${inv.ref}`,
+    body: `<form class="form" data-f novalidate>
+      <div class="summary summary--2"><div><small>Investment</small><strong>${esc(inv.ref)} · ${esc(inv.property_name)}</strong></div><div><small>Available to withdraw</small><strong>${money(max, { cents: true })}</strong></div></div>
+      <div class="form-grid">
+        ${field({ name: 'amount_usd', label: 'Amount (USD)', type: 'number', required: true, value: max, attrs: `min="1" max="${max}" step="0.01" inputmode="decimal"` })}
+        ${field({ name: 'payout', label: 'Receive in', required: true, value: optionKey(first.code, first.network), options: options.map((o) => [optionKey(o.code, o.network), `${o.name} (${o.code}) · ${o.networkName}${same && o === same ? ' — same as your deposit' : ''}`]) })}
+        ${field({ name: 'destination_wallet', label: 'Wallet address', required: true, full: true, value: saved[optionKey(first.code, first.network)] || '', attrs: 'maxlength="120" autocomplete="off" autocapitalize="off" spellcheck="false"' })}
+      </div>
+      <p class="field__hint" data-wallet-hint></p>
+      <div data-save-wrap>${check({ name: 'save_wallet', label: 'Save this address for future withdrawals', checked: true })}</div>
+      ${field({ name: 'password', label: 'Confirm with your password', type: 'password', required: true, attrs: 'autocomplete="current-password"' })}
+      <div class="callout">${icon('info')}<div><p>Double-check the address and network. Crypto sent to a wrong address or network cannot be recovered. Requests are reviewed by our team before payout.</p></div></div>
+      <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">${icon('wallet')} Request withdrawal</button></div></form>`,
     onMount(panel, close) {
       const form = panel.querySelector('[data-f]');
-      form.currency.addEventListener('change', () => {
-        const c = cur.find((x) => x.code === form.currency.value);
-        form.network.innerHTML = c.networks.map((n) => `<option value="${esc(n.code)}">${esc(n.name)}</option>`).join('');
-      });
-      form.investment_id.addEventListener('change', () => {
-        const i = eligible.find((x) => String(x.id) === form.investment_id.value);
-        form.amount_usd.value = i.amount_usd + (i.expected_return || 0);
-      });
+      const hint = panel.querySelector('[data-wallet-hint]');
+      const saveWrap = panel.querySelector('[data-save-wrap]');
+      const sync = (fill) => {
+        const key = form.payout.value;
+        const o = options.find((x) => optionKey(x.code, x.network) === key);
+        const savedAddress = saved[key];
+        if (fill) form.destination_wallet.value = savedAddress || '';
+        const usingSaved = savedAddress && form.destination_wallet.value.trim() === savedAddress;
+        hint.textContent = usingSaved ? `Using your saved ${o.code} (${o.networkName}) wallet.` : `Enter a ${o.code} wallet address on the ${o.networkName} network.`;
+        saveWrap.hidden = !!usingSaved;
+      };
+      form.payout.addEventListener('change', () => sync(true));
+      form.destination_wallet.addEventListener('input', () => sync(false));
+      sync(false);
       bindForm(form, async (d) => {
-        const r = await api.post('/api/me/redemptions', { ...d, investment_id: Number(d.investment_id) });
+        const [currency, network] = String(d.payout).split('|');
+        if (d.amount_usd > max) throw { fields: { amount_usd: `The most you can withdraw is ${money(max, { cents: true })}.` } };
+        const r = await api.post('/api/me/redemptions', {
+          investment_id: inv.id, amount_usd: d.amount_usd, currency, network, destination_wallet: String(d.destination_wallet).trim(),
+          save_wallet: !saveWrap.hidden && !!d.save_wallet, password: d.password,
+        });
         close();
-        toast(`Redemption request ${r.ref} submitted.`);
+        toast(`Withdrawal request ${r.ref} submitted.`);
         done();
       });
     },
   });
 }
 
-export async function redemptions(ctx) {
-  const [{ items }, inv] = await Promise.all([api.get('/api/me/redemptions'), api.get('/api/me/investments')]);
-  const open = new Set(items.filter((r) => ['requested', 'under_review', 'approved'].includes(r.status)).map((r) => r.investment_id));
+function walletModal(option, current, done) {
+  modal({
+    title: `${current ? 'Change' : 'Add'} ${option.code} wallet`,
+    body: `<form class="form" data-f novalidate>
+      <p class="muted">Network: <strong>${esc(option.networkName)}</strong>. Withdrawals in ${esc(option.code)} on this network will be sent to this address.</p>
+      ${field({ name: 'address', label: 'Wallet address', required: true, value: current || '', attrs: 'maxlength="120" autocomplete="off" autocapitalize="off" spellcheck="false"' })}
+      ${field({ name: 'password', label: 'Confirm with your password', type: 'password', required: true, attrs: 'autocomplete="current-password"' })}
+      <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Save wallet</button></div></form>`,
+    onMount(panel, close) {
+      bindForm(panel.querySelector('[data-f]'), async (d) => {
+        await api.put('/api/me/wallets', { currency: option.code, network: option.network, address: String(d.address).trim(), password: d.password });
+        close();
+        toast('Wallet saved.');
+        done();
+      });
+    },
+  });
+}
+
+export async function withdrawals(ctx) {
+  const [{ items }, inv, { items: wallets }] = await Promise.all([api.get('/api/me/redemptions'), api.get('/api/me/investments'), api.get('/api/me/wallets')]);
+  const open = new Set(items.filter((r) => OPEN_WITHDRAWAL.includes(r.status)).map((r) => r.investment_id));
   const eligible = inv.items.filter((i) => i.status === 'matured' && !open.has(i.id));
-  const enabled = state.site?.redemptions_enabled;
+  const upcoming = inv.items.filter((i) => ['active', 'maturing'].includes(i.status) && i.maturity_date).sort((a, b) => a.maturity_date.localeCompare(b.maturity_date))[0];
+  const enabled = !!state.site?.redemptions_enabled;
+  const options = payoutOptions();
+  const savedBy = Object.fromEntries(wallets.map((w) => [optionKey(w.currency, w.network), w]));
+  const withdrawButton = enabled && eligible.length
+    ? `<button class="btn btn--gold" data-withdraw="${eligible[0].id}">${icon('wallet')} Withdraw</button>`
+    : `<button class="btn btn--gold" type="button" disabled title="Available when an investment matures">${icon('wallet')} Withdraw</button>`;
+  const readyRows = eligible.map((i) => `<li class="ready-item">
+      <div class="ready-item__main"><strong>${esc(i.ref)}</strong><span>${esc(i.property_name)} · ${esc(i.plan_name)}</span><small class="muted">Matured ${date(i.maturity_date)} · paid with ${esc(i.currency)} (${esc(i.network)})</small></div>
+      <div class="ready-item__amt"><small>Available</small><strong>${money(withdrawable(i), { cents: true })}</strong></div>
+      <button class="btn btn--gold btn--sm" data-withdraw="${i.id}">${icon('wallet')} Withdraw</button></li>`).join('');
   return {
-    title: 'Redemptions',
-    html: `${head('Redemptions', 'Request payouts for matured investments.', enabled && eligible.length ? `<button class="btn btn--gold" data-new>${icon('refresh')} Request redemption</button>` : '')}
-    ${!enabled ? `<div class="callout callout--warn">${icon('info')}<div><p>Redemption requests are currently unavailable.</p></div></div>` : eligible.length ? '' : `<div class="callout">${icon('info')}<div><p>You can request redemption once an investment reaches maturity.</p></div></div>`}
-    <section class="card card--table">${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Reference</th><th>Investment</th><th class="num">Amount</th><th>To wallet</th><th>Status</th><th>Payout tx</th><th>Requested</th></tr></thead><tbody>
-      ${items.map((r) => `<tr><td><strong>${esc(r.ref)}</strong></td><td><a href="/app/investments/${r.investment_id}">${esc(r.investment_ref)}</a></td><td class="num">${money(r.amount_usd)}</td><td class="mono">${esc(shortHash(r.destination_wallet))}<br><small class="muted">${esc(r.currency)} · ${esc(r.network)}</small></td><td>${badge(r.status)}${r.admin_note ? `<br><small class="muted">${esc(r.admin_note)}</small>` : ''}</td><td class="mono">${esc(shortHash(r.tx_hash))}</td><td>${date(r.created_at)}</td></tr>`).join('')}
-    </tbody></table></div>` : empty('No redemption requests', 'Requests you make will be tracked here.')}</section>`,
-    mount(root) { root.querySelector('[data-new]')?.addEventListener('click', () => redemptionModal(eligible, () => ctx.reload())); },
+    title: 'Withdrawals',
+    live: liveReload(ctx, '/api/me/redemptions', (d) => d.items.map((r) => [r.id, r.status]), { items }),
+    html: `${head('Withdrawals', 'Withdraw matured investments to your crypto wallet.', withdrawButton)}
+    ${!enabled ? `<div class="callout callout--warn">${icon('info')}<div><p>Withdrawals are currently unavailable. Contact support if you need help.</p></div></div>` : ''}
+    ${enabled && eligible.length ? `<section class="card"><header class="card__head"><h2 class="card__title">Ready to withdraw</h2><span class="badge badge--ok">${eligible.length} matured</span></header><ul class="ready-list">${readyRows}</ul></section>`
+      : enabled ? `<div class="callout">${icon('clock')}<div><strong>Nothing to withdraw yet</strong><p>You can withdraw an investment once it matures.${upcoming ? ` Your next maturity is <a href="/app/investments/${upcoming.id}">${esc(upcoming.ref)}</a> on ${date(upcoming.maturity_date)}.` : ''}</p></div></div>` : ''}
+    <section class="card card--table"><header class="card__head"><h2 class="card__title">Withdrawal requests</h2></header>${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Reference</th><th>Investment</th><th class="num">Amount</th><th>To wallet</th><th>Status</th><th>Payout tx</th><th>Requested</th></tr></thead><tbody>
+      ${items.map((r) => `<tr><td><strong>${esc(r.ref)}</strong></td><td><a href="/app/investments/${r.investment_id}">${esc(r.investment_ref)}</a></td><td class="num">${money(r.amount_usd)}</td><td class="mono"><span title="${esc(r.destination_wallet)}">${esc(shortHash(r.destination_wallet))}</span><br><small class="muted">${esc(r.currency)} · ${esc(r.network)}</small></td><td>${badge(r.status)}${r.admin_note ? `<br><small class="muted">${esc(r.admin_note)}</small>` : ''}</td><td class="mono">${esc(shortHash(r.tx_hash))}</td><td>${date(r.created_at)}</td></tr>`).join('')}
+    </tbody></table></div>` : empty('No withdrawal requests', 'Requests you make will be tracked here.')}</section>
+    <section class="card"><header class="card__head"><div><h2 class="card__title">Payout wallets</h2><p class="muted small">Save a wallet for each cryptocurrency to make withdrawals quicker. You confirm the wallet every time you withdraw.</p></div></header>
+      ${options.length ? `<ul class="wallet-list">${options.map((o) => {
+        const w = savedBy[optionKey(o.code, o.network)];
+        return `<li class="wallet-item"><span class="coin__mark coin__mark--${esc(o.code.toLowerCase())}">${esc(o.code.slice(0, 1))}</span>
+          <div class="wallet-item__main"><strong>${esc(o.name)} (${esc(o.code)})</strong><small class="muted">${esc(o.networkName)}</small>${w ? `<span class="mono wallet-item__addr">${esc(w.address)}</span>` : '<span class="muted small">Not set</span>'}</div>
+          <div class="wallet-item__actions"><button class="btn btn--ghost btn--sm" data-wallet="${esc(optionKey(o.code, o.network))}">${w ? 'Change' : 'Add'}</button>${w ? `<button class="icon-btn icon-btn--sm" data-wallet-remove="${w.id}" aria-label="Remove ${esc(o.code)} wallet">${icon('trash')}</button>` : ''}</div></li>`;
+      }).join('')}</ul>` : '<p class="muted">No cryptocurrencies are available for payouts at the moment.</p>'}
+    </section>`,
+    mount(root) {
+      root.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', () => {
+        const i = eligible.find((x) => x.id === Number(b.dataset.withdraw));
+        if (i) withdrawalModal(i, wallets, () => ctx.reload());
+      }));
+      root.querySelectorAll('[data-wallet]').forEach((b) => b.addEventListener('click', () => {
+        const o = options.find((x) => optionKey(x.code, x.network) === b.dataset.wallet);
+        walletModal(o, savedBy[b.dataset.wallet]?.address, () => ctx.reload());
+      }));
+      root.querySelectorAll('[data-wallet-remove]').forEach((b) => b.addEventListener('click', async () => {
+        if (!(await confirmDialog({ title: 'Remove this wallet?', message: 'You can add it again at any time. Pending withdrawal requests are not affected.', confirm: 'Remove', tone: 'danger' }))) return;
+        try { await api.del(`/api/me/wallets/${b.dataset.walletRemove}`); toast('Wallet removed.'); ctx.reload(); }
+        catch (err) { toast(err.message, 'bad'); }
+      }));
+    },
+  };
+}
+
+/* ----------------------------------------------------------- investment plans */
+export async function plans() {
+  const { items } = await api.get('/api/public/plans');
+  return {
+    title: 'Investment plans',
+    html: `${head('Investment plans', 'The same partnership plans shown on our website. Choose one to start investing.', `<a class="btn btn--gold" href="/app/invest">${icon('plus')} New investment</a>`)}
+    <section class="card card--table">${Pub.plansTable(items, { action: (p) => `<a class="btn btn--gold btn--sm" href="/app/invest?plan=${p.id}">Invest</a>` })}</section>
+    ${Pub.plansNote()}`,
   };
 }
 
@@ -440,11 +543,11 @@ export async function kyc(ctx) {
       ${field({ name: 'postal_code', label: 'Postal code', value: p.postal_code || '', attrs: 'autocomplete="postal-code" maxlength="20"' })}
     </div><p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Continue ${icon('arrow')}</button></div></form>`,
     `<h2 class="card__title">Upload identity document</h2><p class="muted">Upload a valid government-issued ID. All four corners must be visible and the text readable.</p>
-      ${uploader('identity', docs.identity, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB each). You can upload several files.', docTypes: [['passport', 'Passport', 'globe'], ['national_id', 'National ID card', 'card'], ['drivers_license', 'Driver’s license', 'card']] })}`,
+      ${uploader('identity', docs.identity, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF. Photos are resized automatically; PDFs up to 3 MB. You can upload several files.', docTypes: [['passport', 'Passport', 'globe'], ['national_id', 'National ID card', 'card'], ['drivers_license', 'Driver’s license', 'card']] })}`,
     `<h2 class="card__title">Upload proof of address</h2><p class="muted">A utility bill, bank statement or tenancy agreement dated within the last 3 months, showing your name and address.</p>
-      ${uploader('address', docs.address, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF (max 10 MB each). You can upload several files.', docTypes: [['utility_bill', 'Utility bill', 'file'], ['bank_statement', 'Bank statement', 'file'], ['tenancy', 'Tenancy agreement', 'home']] })}`,
+      ${uploader('address', docs.address, { accept: IMG_PDF, title: 'Click to upload or drag and drop', hint: 'JPG, PNG, WEBP or PDF. Photos are resized automatically; PDFs up to 3 MB. You can upload several files.', docTypes: [['utility_bill', 'Utility bill', 'file'], ['bank_statement', 'Bank statement', 'file'], ['tenancy', 'Tenancy agreement', 'home']] })}`,
     `<h2 class="card__title">Take a selfie</h2><p class="muted">Take a clear photo of your face in good light, without glasses or hats. On mobile this opens your camera.</p>
-      ${uploader('selfie', docs.selfie, { accept: IMG, title: 'Take or upload a selfie', hint: 'JPG, PNG or WEBP (max 10 MB each). Use the button again to add more photos.' })}`,
+      ${uploader('selfie', docs.selfie, { accept: IMG, title: 'Take or upload a selfie', hint: 'JPG, PNG or WEBP. Photos are resized automatically. Use the button again to add more photos.' })}`,
     `<form class="form" data-step="funds" novalidate><div class="form-grid">
       ${field({ name: 'source', label: 'Main source of funds', required: true, value: sf.source || '', options: [['', 'Select'], ['employment', 'Employment income'], ['business', 'Business income'], ['investments', 'Investment returns'], ['savings', 'Savings'], ['inheritance', 'Inheritance or gift'], ['property_sale', 'Sale of property'], ['other', 'Other']] })}
       ${field({ name: 'annual_income', label: 'Annual income (USD)', required: true, value: su.annual_income || '', options: [['', 'Select'], ['under_25k', 'Under $25,000'], ['25k_100k', '$25,000 – $100,000'], ['100k_250k', '$100,000 – $250,000'], ['250k_1m', '$250,000 – $1M'], ['over_1m', 'Over $1M']] })}
@@ -464,7 +567,7 @@ export async function kyc(ctx) {
     title: 'Verification',
     html: `${head('KYC verification', 'Verify your identity to start investing.')}
     ${k.status === 'requires_info' || k.status === 'rejected' ? `<div class="callout callout--warn">${icon('alert')}<div><strong>${k.status === 'rejected' ? 'Verification not approved' : 'Update needed'}</strong><p>${esc(k.admin_note || '')}</p></div></div>` : ''}
-    <ol class="stepper stepper--links">${KYC_STEPS.map((s, i) => `<li class="${i === step ? 'is-current' : done[i] ? 'is-done' : ''}"><a href="/app/kyc?step=${i}"><span>${done[i] && i !== step ? icon('check') : i + 1}</span><em>${s}</em></a></li>`).join('')}</ol>
+    <ol class="stepper stepper--links">${KYC_STEPS.map((s, i) => `<li class="${i === step ? 'is-current' : done[i] ? 'is-done' : ''}"><a href="/app/kyc?step=${i}"><span>${done[i] && i !== step ? icon('check') : i + 1}</span><em>${s}</em></a></li>`).join('')}</ol><p class="stepper__caption"><span>Step ${step + 1} of ${KYC_STEPS.length}</span> · <em>${KYC_STEPS[step]}</em></p>
     <div class="kyc-grid"><section class="card">${panels[step]}
       ${step >= 1 && step <= 3 ? `<div class="form__actions">${step > 0 ? `<a class="btn btn--ghost" href="/app/kyc?step=${step - 1}">${icon('arrowLeft')} Back</a>` : ''}<a class="btn btn--gold" href="/app/kyc?step=${step + 1}" data-continue>Continue ${icon('arrow')}</a></div>` : ''}
     </section>
@@ -491,14 +594,14 @@ export async function kyc(ctx) {
           }
           drop.classList.add('is-busy');
           drop.setAttribute('aria-busy', 'true');
-          status.innerHTML = `<span class="spinner spinner--sm"></span> Uploading ${files.length} ${files.length === 1 ? 'file' : 'files'}…`;
+          status.innerHTML = `<span class="spinner spinner--sm"></span> Preparing ${files.length} ${files.length === 1 ? 'file' : 'files'}…`;
           const docType = root.querySelector('input[name=doc_type]:checked')?.value || (kind === 'selfie' ? 'selfie' : undefined);
           let done = [];
           let error = null;
           try {
             ({ done, error } = await uploadMany(files, { types: kind === 'selfie' ? IMG : IMG_PDF, purpose: `kyc_${kind}` }, async (f, file, index) => {
-              status.innerHTML = `<span class="spinner spinner--sm"></span> Saving file ${index + 1} of ${files.length}…`;
-              const res = await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f });
+              status.innerHTML = `<span class="spinner spinner--sm"></span> Uploading file ${index + 1} of ${files.length}…`;
+              const res = await api.post('/api/me/kyc/document', { kind, doc_type: docType, file: f }, { timeout: 90000 });
               list.insertAdjacentHTML('beforeend', uploadedItem(res.document));
               return res;
             }));
@@ -561,7 +664,7 @@ export async function support(ctx) {
     mount(root) {
       root.querySelector('[data-new]').addEventListener('click', () => modal({
         title: 'New support ticket',
-        body: `<form class="form" data-f novalidate>${field({ name: 'category', label: 'Topic', required: true, options: [['investment', 'Investment'], ['payment', 'Payment'], ['kyc', 'Verification'], ['redemption', 'Redemption'], ['account', 'Account'], ['general', 'Other']] })}
+        body: `<form class="form" data-f novalidate>${field({ name: 'category', label: 'Topic', required: true, options: [['investment', 'Investment'], ['payment', 'Payment'], ['kyc', 'Verification'], ['redemption', 'Withdrawal'], ['account', 'Account'], ['general', 'Other']] })}
           ${field({ name: 'subject', label: 'Subject', required: true, attrs: 'maxlength="160"' })}${field({ name: 'message', label: 'Message', type: 'textarea', required: true, rows: 5, attrs: 'minlength="10" maxlength="5000"' })}
           <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Open ticket</button></div></form>`,
         onMount(panel, close) {
@@ -574,7 +677,7 @@ export async function support(ctx) {
 
 export async function ticket(ctx) {
   const { ticket: t, messages } = await api.get(`/api/me/tickets/${encodeURIComponent(ctx.params.id)}`);
-  const msgHtml = (m) => `<li class="thread__msg ${m.author_type === 'admin' ? 'thread__msg--staff' : ''}"><header><strong>${m.author_type === 'admin' ? 'EstateInvest Support' : 'You'}</strong><small>${dateTime(m.created_at)}</small></header><p>${esc(m.body).replace(/\n/g, '<br>')}</p></li>`;
+  const msgHtml = (m) => `<li class="thread__msg ${m.author_type === 'admin' ? 'thread__msg--staff' : ''}"><header><strong>${m.author_type === 'admin' ? 'SapronLife Support' : 'You'}</strong><small>${dateTime(m.created_at)}</small></header><p>${esc(m.body).replace(/\n/g, '<br>')}</p></li>`;
   let count = messages.length;
   return {
     title: t.ref,

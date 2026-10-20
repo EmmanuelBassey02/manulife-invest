@@ -8,12 +8,12 @@ const S = require('../lib/services');
 const E = require('../lib/engine');
 const { Raw } = require('../lib/http');
 const { serializeProperty, serializePlan, planAvailable } = require('./public');
+const { walletProblem } = require('../lib/wallets');
 
 const FUNDED = ['payment_confirmed', 'active', 'maturing', 'matured', 'completed', 'redeemed'];
 const inList = (arr) => arr.map((s) => `'${s}'`).join(',');
 
 const TX_HASH_RE = /^(0x)?[A-Za-z0-9_-]{20,128}$/;
-const WALLET_RE = /^[A-Za-z0-9:_-]{20,120}$/;
 
 function serializeInvestment(i) {
   return {
@@ -45,11 +45,11 @@ function serializePayment(p) {
 function printable(title, rows, foot) {
   const esc = (s) => String(s == null ? '—' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<style>body{font-family:Georgia,serif;background:#f4f2ee;color:#1d2735;margin:0;padding:24px}.doc{max-width:720px;margin:auto;background:#fff;border:1px solid #e5dccb;padding:48px}
-h1{font-weight:400;font-size:28px;margin:0 0 4px}.brand{color:#9a7633;letter-spacing:.04em;margin-bottom:32px}table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px}
+<style>body{font-family:Georgia,serif;background:#f1f7f3;color:#1d3025;margin:0;padding:24px}.doc{max-width:720px;margin:auto;background:#fff;border:1px solid #d6e8dc;padding:48px}
+h1{font-weight:400;font-size:28px;margin:0 0 4px}.brand{margin-bottom:32px}.brand img{width:200px;height:auto;display:block}table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px}
 td{padding:10px 0;border-bottom:1px solid #eee;vertical-align:top}td:first-child{color:#6b7685;width:40%}.foot{margin-top:32px;font:12px/1.6 Arial,sans-serif;color:#6b7685}
-@media print{body{background:#fff;padding:0}.doc{border:0}button{display:none}}button{margin:24px auto 0;display:block;padding:10px 20px;background:#c9a45c;border:0;border-radius:6px;font-weight:600;cursor:pointer}</style></head>
-<body><div class="doc"><div class="brand">EstateInvest</div><h1>${esc(title)}</h1><p style="color:#6b7685;font-family:Arial,sans-serif;font-size:13px">Issued ${esc(E.fmtDate(now()))}</p>
+@media print{body{background:#fff;padding:0}.doc{border:0}button{display:none}}button{margin:24px auto 0;display:block;padding:10px 20px;background:#16834a;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}</style></head>
+<body><div class="doc"><div class="brand"><img src="/assets/img/logo.png" alt="SapronLife Financial Investment"></div><h1>${esc(title)}</h1><p style="color:#6b7685;font-family:Arial,sans-serif;font-size:13px">Issued ${esc(E.fmtDate(now()))}</p>
 <table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><p class="foot">${esc(foot)}</p></div><button type="button" data-print>Print or save as PDF</button><script src="/assets/js/print.js"></script></body></html>`;
 }
 
@@ -226,7 +226,7 @@ function register(r) {
     const invs = await db.all(`SELECT id, ref, created_at, start_date FROM investments WHERE user_id=? AND status IN (${inList(FUNDED)}) ORDER BY id DESC`, [uid]);
     for (const i of invs) items.push({ id: `cert-${i.id}`, category: 'certificate', title: `Investment certificate ${i.ref}`, investment_ref: i.ref, created_at: i.start_date || i.created_at, url: `/api/me/investments/${i.id}/certificate` });
     const pays = await db.all("SELECT id, ref, verified_at, kind FROM payments WHERE user_id=? AND status='confirmed' ORDER BY id DESC", [uid]);
-    for (const p of pays) items.push({ id: `rcpt-${p.id}`, category: p.kind === 'redemption' ? 'redemption' : 'receipt', title: `${p.kind === 'redemption' ? 'Redemption confirmation' : 'Payment receipt'} ${p.ref}`, created_at: p.verified_at, url: `/api/me/payments/${p.id}/receipt` });
+    for (const p of pays) items.push({ id: `rcpt-${p.id}`, category: p.kind === 'redemption' ? 'redemption' : 'receipt', title: `${p.kind === 'redemption' ? 'Withdrawal confirmation' : 'Payment receipt'} ${p.ref}`, created_at: p.verified_at, url: `/api/me/payments/${p.id}/receipt` });
     items.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     return { items };
   });
@@ -242,14 +242,14 @@ function register(r) {
       ['Transaction hash', i.tx_hash], ['Start date', E.fmtDate(i.start_date)], ['Maturity date', E.fmtDate(i.maturity_date)],
       ['Return terms', terms.approved ? `${terms.rate}% ${{ fixed_annual: 'per year', fixed_weekly: 'per week' }[terms.type] || 'total'}` : (terms.note || 'Pending legal approval')],
       ['Status', E.LABELS[i.status]],
-    ], 'This certificate records your participation as held in EstateInvest records. It is subject to the Investment Terms, Investor Agreement and Risk Disclosure you accepted.'), 'text/html; charset=utf-8');
+    ], 'This certificate records your participation as held in SapronLife Financial Investment records. It is subject to the Investment Terms, Investor Agreement and Risk Disclosure you accepted.'), 'text/html; charset=utf-8');
   });
 
   r.get('/api/me/payments/:id/receipt', async (ctx) => {
     A.requireInvestor(ctx);
     const p = await db.get("SELECT p.*, i.ref AS investment_ref FROM payments p LEFT JOIN investments i ON i.id=p.investment_id WHERE p.id=? AND p.user_id=? AND p.status='confirmed'", [Number(ctx.params.id) || 0, ctx.user.id]);
     if (!p) throw NotFound('Receipt');
-    return new Raw(printable(`${p.kind === 'redemption' ? 'Redemption confirmation' : 'Payment receipt'} ${p.ref}`, [
+    return new Raw(printable(`${p.kind === 'redemption' ? 'Withdrawal confirmation' : 'Payment receipt'} ${p.ref}`, [
       ['Investor', `${ctx.user.first_name} ${ctx.user.last_name}`], ['Reference', p.ref], ['Investment', p.investment_ref],
       ['Amount', `${p.amount_crypto} ${p.currency}`], ['USD value at rate', `$${Number(p.amount_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
       ['Network', p.network], [p.kind === 'redemption' ? 'Destination wallet' : 'Receiving wallet', p.wallet_address], ['Transaction hash', p.tx_hash],
@@ -383,45 +383,102 @@ function register(r) {
     return { ok: true };
   });
 
-  /* ------------------------------------------------------------- redemptions */
+  /* -------------------------------------------------- withdrawals (stored as redemptions) */
+  const enabledCurrencies = async () => (await S.getSetting('payments')).currencies.filter((c) => c.enabled);
+  const findNetwork = (currencies, currency, network) => {
+    const cur = currencies.find((c) => c.code === currency);
+    return cur && cur.networks.find((n) => n.code === network) ? cur : null;
+  };
+  async function saveWallet(h, userId, currency, network, address) {
+    const t = now();
+    const existing = await h.get('SELECT id, address FROM payout_wallets WHERE user_id=? AND currency=? AND network=?', [userId, currency, network]);
+    if (existing) {
+      if (existing.address !== address) await h.run('UPDATE payout_wallets SET address=?, updated_at=? WHERE id=?', [address, t, existing.id]);
+      return { id: existing.id, changed: existing.address !== address, previous: existing.address };
+    }
+    const id = await insert(h, 'payout_wallets', { user_id: userId, currency, network, address, created_at: t, updated_at: t });
+    return { id, changed: true, previous: null };
+  }
+
   r.get('/api/me/redemptions', async (ctx) => {
     A.requireInvestor(ctx);
     const items = await db.all('SELECT r.*, i.ref AS investment_ref FROM redemptions r JOIN investments i ON i.id=r.investment_id WHERE r.user_id=? ORDER BY r.id DESC', [ctx.user.id]);
     return { items };
   });
 
+  r.get('/api/me/wallets', async (ctx) => {
+    A.requireInvestor(ctx);
+    const items = await db.all('SELECT id, currency, network, address, updated_at FROM payout_wallets WHERE user_id=? ORDER BY currency, network', [ctx.user.id]);
+    return { items };
+  });
+
+  r.put('/api/me/wallets', async (ctx) => {
+    A.requireInvestor(ctx);
+    ctx.rateLimit('wallets', 20, 3600);
+    const b = check(ctx.body, {
+      currency: { required: true, max: 10 }, network: { required: true, max: 20 },
+      address: { required: true, max: 120, label: 'wallet address' }, password: { required: true, max: 128 },
+    });
+    if (!findNetwork(await enabledCurrencies(), b.currency, b.network)) throw new HttpError(422, 'Choose a supported cryptocurrency and network.');
+    const problem = walletProblem(b.network, b.address);
+    if (problem) throw new HttpError(422, 'Check the highlighted fields.', { address: problem });
+    if (!A.verifyPassword(b.password, ctx.user.password_hash)) throw new HttpError(422, 'Check the highlighted fields.', { password: 'Your password is incorrect.' });
+    const saved = await saveWallet(db, ctx.user.id, b.currency, b.network, b.address);
+    if (saved.changed) {
+      await S.audit(ctx, 'wallet.save', 'payout_wallet', saved.id, saved.previous ? { address: saved.previous } : null, { currency: b.currency, network: b.network, address: b.address });
+      await S.notify(ctx.user.id, { type: 'security', title: 'Payout wallet saved', body: `Your ${b.currency} (${b.network}) withdrawal wallet was set to ${b.address}. If you didn't do this, contact support immediately.`, link: '/app/withdrawals' });
+    }
+    return { ok: true, id: saved.id };
+  });
+
+  r.delete('/api/me/wallets/:id', async (ctx) => {
+    A.requireInvestor(ctx);
+    const w = await db.get('SELECT * FROM payout_wallets WHERE id=? AND user_id=?', [Number(ctx.params.id) || 0, ctx.user.id]);
+    if (!w) throw NotFound('Wallet');
+    await db.run('DELETE FROM payout_wallets WHERE id=?', [w.id]);
+    await S.audit(ctx, 'wallet.remove', 'payout_wallet', w.id, { currency: w.currency, network: w.network, address: w.address }, null);
+    return { ok: true };
+  });
+
   r.post('/api/me/redemptions', async (ctx) => {
     A.requireInvestor(ctx);
     ctx.rateLimit('redeem', 10, 3600);
     const settings = await S.getSetting('investing');
-    if (!settings.redemptions_enabled) throw new HttpError(403, 'Redemption requests are not available at the moment.');
+    if (!settings.redemptions_enabled) throw new HttpError(403, 'Withdrawals are not available at the moment.');
     const b = check(ctx.body, {
       investment_id: { type: 'int', required: true, label: 'investment' }, amount_usd: { type: 'number', required: true, min: 1, label: 'amount' },
       currency: { required: true, max: 10 }, network: { required: true, max: 20 },
-      destination_wallet: { required: true, max: 120, pattern: WALLET_RE, message: 'Enter a valid wallet address.', label: 'destination wallet' },
-      password: { required: true, max: 128 },
+      destination_wallet: { required: true, max: 120, label: 'wallet address' },
+      save_wallet: { type: 'bool' }, password: { required: true, max: 128 },
     });
-    if (!A.verifyPassword(b.password, ctx.user.password_hash)) throw new HttpError(422, 'Check the highlighted fields.', { password: 'Your password is incorrect.' });
     const inv = await db.get('SELECT * FROM investments WHERE id=? AND user_id=?', [b.investment_id, ctx.user.id]);
     if (!inv) throw NotFound('Investment');
     const eligible = inv.status === 'matured' || (settings.early_redemption && ['active', 'maturing'].includes(inv.status));
-    if (!eligible) throw new HttpError(409, 'This investment is not eligible for redemption yet.');
+    if (!eligible) throw new HttpError(409, 'This investment can be withdrawn once it matures.');
     const openR = await db.get("SELECT id FROM redemptions WHERE investment_id=? AND status IN ('requested','under_review','approved')", [inv.id]);
-    if (openR) throw new HttpError(409, 'A redemption request for this investment is already in progress.');
+    if (openR) throw new HttpError(409, 'A withdrawal request for this investment is already in progress.');
+    const cur = findNetwork(await enabledCurrencies(), b.currency, b.network);
+    if (!cur) throw new HttpError(422, 'Choose a supported cryptocurrency and network.');
+    const problem = walletProblem(b.network, b.destination_wallet);
+    if (problem) throw new HttpError(422, 'Check the highlighted fields.', { destination_wallet: problem });
     const max = round(Number(inv.amount_usd) + Number(inv.expected_return || 0));
-    if (b.amount_usd > max) throw new HttpError(422, 'Check the highlighted fields.', { amount_usd: `The most you can redeem is $${max.toLocaleString('en-US')}.` });
-    const pay = await S.getSetting('payments');
-    const cur = pay.currencies.find((c) => c.enabled && c.code === b.currency);
-    if (!cur || !cur.networks.find((n) => n.code === b.network)) throw new HttpError(422, 'Choose a supported cryptocurrency and network.');
+    if (b.amount_usd > max) throw new HttpError(422, 'Check the highlighted fields.', { amount_usd: `The most you can withdraw is $${max.toLocaleString('en-US')}.` });
+    if (!A.verifyPassword(b.password, ctx.user.password_hash)) throw new HttpError(422, 'Check the highlighted fields.', { password: 'Your password is incorrect.' });
     const t = now();
-    const id = await insert(db, 'redemptions', {
-      user_id: ctx.user.id, investment_id: inv.id, amount_usd: round(b.amount_usd), currency: cur.code, network: b.network,
-      destination_wallet: b.destination_wallet, status: 'requested', created_at: t, updated_at: t,
+    const result = await db.tx(async (h) => {
+      const id = await insert(h, 'redemptions', {
+        user_id: ctx.user.id, investment_id: inv.id, amount_usd: round(b.amount_usd), currency: cur.code, network: b.network,
+        destination_wallet: b.destination_wallet, status: 'requested', created_at: t, updated_at: t,
+      });
+      const ref = await S.assignRef(h, 'redemptions', 'WDR', id, 3000);
+      const wallet = b.save_wallet ? await saveWallet(h, ctx.user.id, cur.code, b.network, b.destination_wallet) : null;
+      return { id, ref, wallet };
     });
-    const ref = await S.assignRef(db, 'redemptions', 'RED', id, 3000);
-    await S.audit(ctx, 'redemption.request', 'redemption', id, null, { ref, amount_usd: b.amount_usd, wallet: b.destination_wallet });
-    await S.notify(ctx.user.id, { type: 'redemption', title: 'Redemption request received', body: `We received redemption request ${ref} for ${inv.ref}. Our team will review it and contact you.`, link: '/app/redemptions' });
-    await S.notifyAdmins(`Redemption request ${ref}`, `$${b.amount_usd} for ${inv.ref}`, '/admin/redemptions');
+    const { id, ref, wallet } = result;
+    await S.audit(ctx, 'redemption.request', 'redemption', id, null, { ref, amount_usd: b.amount_usd, currency: cur.code, network: b.network, wallet: b.destination_wallet });
+    if (wallet && wallet.changed) await S.audit(ctx, 'wallet.save', 'payout_wallet', wallet.id, wallet.previous ? { address: wallet.previous } : null, { currency: cur.code, network: b.network, address: b.destination_wallet });
+    await S.notify(ctx.user.id, { type: 'redemption', title: 'Withdrawal request received', body: `We received withdrawal request ${ref} for ${inv.ref}. Your payout of up to $${round(b.amount_usd).toLocaleString('en-US')} will be sent in ${cur.code} (${b.network}) to ${b.destination_wallet} once approved.`, link: '/app/withdrawals' });
+    await S.notifyAdmins(`Withdrawal request ${ref}`, `$${round(b.amount_usd).toLocaleString('en-US')} for ${inv.ref} in ${cur.code} (${b.network})`, '/admin/withdrawals');
     return { ok: true, ref };
   });
 
@@ -482,7 +539,8 @@ function register(r) {
   r.get('/api/me/invest-options', async (ctx) => {
     A.requireInvestor(ctx);
     const props = await db.all("SELECT * FROM properties WHERE status='published' AND accepting=1 ORDER BY featured DESC, name");
-    const plans = await db.all('SELECT * FROM plans ORDER BY sort, duration_months');
+    // Same query as /api/public/plans so the app offers exactly the plans shown on the website.
+    const plans = await db.all('SELECT pl.*, p.name AS property_name FROM plans pl LEFT JOIN properties p ON p.id=pl.property_id ORDER BY pl.sort, pl.duration_months');
     const pay = await S.getSetting('payments');
     const investing = await S.getSetting('investing');
     return {

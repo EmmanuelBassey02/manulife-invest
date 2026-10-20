@@ -68,6 +68,18 @@ CREATE TABLE IF NOT EXISTS upload_tokens (
   used_at TEXT
 );
 
+-- Wallets an investor saves for withdrawal payouts: one address per currency and network.
+CREATE TABLE IF NOT EXISTS payout_wallets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  currency TEXT NOT NULL,
+  network TEXT NOT NULL,
+  address TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (user_id, currency, network)
+);
+
 CREATE TABLE IF NOT EXISTS kyc_submissions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),

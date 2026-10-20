@@ -51,9 +51,12 @@ const TONES = {
 };
 const STATUS_TEXT = {
   payment_awaiting: 'Awaiting payment', payment_confirmed: 'Payment confirmed', pending_review: 'Pending review', requires_info: 'Needs information',
-  not_started: 'Not started', under_review: 'Under review', awaiting: 'Awaiting payment', submitted: 'Verifying',
+  not_started: 'Not started', under_review: 'Under review', awaiting: 'Awaiting payment', submitted: 'Verifying', redeemed: 'Withdrawn',
 };
 export const statusText = (s) => STATUS_TEXT[s] || sentence(s);
+/** Display names for stored keys that were renamed for users (e.g. redemption → withdrawal). */
+const RENAMED = { redemption: 'Withdrawal', redemptions: 'Withdrawals' };
+export const label = (key) => RENAMED[key] || sentence(key);
 export const badge = (s, label) => `<span class="badge badge--${TONES[s] || 'muted'}">${esc(label || statusText(s))}</span>`;
 
 /* ------------------------------------------------------------------- icons */
@@ -117,7 +120,8 @@ const P = {
 };
 export const icon = (name, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
 
-export const BRAND_MARK = '<img class="brand__logo" src="/assets/img/logo.png" alt="Manulife Financial Investment Services">';
+export const BRAND_NAME = 'SapronLife Financial Investment';
+export const BRAND_MARK = '<img class="brand__logo" src="/assets/img/logo.png" alt="SapronLife Financial Investment" width="640" height="175">';
 
 /* ------------------------------------------------------------------- toast */
 export function toast(message, tone = 'ok') {
@@ -298,15 +302,75 @@ export function readFile(file, { maxMB = 10, types } = {}) {
   });
 }
 
-export async function uploadFile(file, { maxMB = 10, types, purpose } = {}) {
-  if (!file) throw new Error('Choose a file to upload.');
-  if (types && !types.includes(file.type)) throw new Error(`Upload a ${types.map((t) => t.split('/')[1].toUpperCase()).join(', ')} file.`);
-  if (file.size > maxMB * 1024 * 1024) throw new Error(`Files must be ${maxMB} MB or smaller.`);
-  if (document.documentElement.dataset.uploadMode === 'blob') {
-    if (typeof window.eiBlobUpload !== 'function') throw new Error('Secure upload is still initializing. Refresh the page and try again.');
-    return window.eiBlobUpload(file, purpose);
+const EXT_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' };
+const COMPRESSIBLE = ['image/jpeg', 'image/png', 'image/webp'];
+// Vercel rejects request bodies over 4.5 MB; base64 adds a third, so files are kept at or under 3 MB.
+const MAX_SEND_BYTES = 3 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 2200;
+
+function fileType(file) {
+  if (file.type) return file.type === 'image/jpg' ? 'image/jpeg' : file.type;
+  return EXT_TYPES[String(file.name || '').split('.').pop().toLowerCase()] || '';
+}
+const typeList = (types) => types.map((t) => (t === 'application/pdf' ? 'PDF' : t.split('/')[1].toUpperCase())).join(', ');
+
+async function decodeImage(file) {
+  if (typeof createImageBitmap === 'function') {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { /* fall back below */ }
   }
-  return readFile(file, { maxMB, types });
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/** Re-encodes a photo as a JPEG no larger than MAX_IMAGE_SIDE so it uploads quickly and within size limits. */
+async function shrinkImage(file) {
+  const img = await decodeImage(file);
+  const w = img.width || img.naturalWidth;
+  const h = img.height || img.naturalHeight;
+  for (const [side, quality] of [[MAX_IMAGE_SIDE, 0.86], [1800, 0.78], [1400, 0.7]]) {
+    const scale = Math.min(1, side / Math.max(w, h));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (blob && blob.size <= MAX_SEND_BYTES) {
+      img.close?.();
+      const base = String(file.name || 'photo').replace(/\.[^.]+$/, '') || 'photo';
+      return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
+    }
+  }
+  img.close?.();
+  return null;
+}
+
+/** Reads a file for upload. Photos are resized when needed; every file goes to our own API, never directly to storage. */
+export async function uploadFile(file, { types } = {}) {
+  if (!file) throw new Error('Choose a file to upload.');
+  const type = fileType(file);
+  if (/heic|heif/i.test(type) || /\.(heic|heif)$/i.test(file.name || '')) throw new Error('HEIC photos are not supported. Choose a JPG or PNG photo, or take a screenshot of the photo and upload that.');
+  if (types && !types.includes(type)) throw new Error(`Upload a ${typeList(types)} file.`);
+  if (!file.size) throw new Error('This file is empty. Choose another file.');
+  let ready = file;
+  if (COMPRESSIBLE.includes(type) && (file.size > 1.5 * 1024 * 1024 || type === 'image/png' && file.size > 600 * 1024)) {
+    try { ready = (await shrinkImage(file)) || file; } catch { ready = file; }
+  }
+  if (ready.size > MAX_SEND_BYTES) {
+    throw new Error(type === 'application/pdf'
+      ? 'PDF files must be 3 MB or smaller. Take a photo of the document instead, or upload a smaller PDF.'
+      : 'This photo is too large to upload. Try another photo or take a screenshot of it.');
+  }
+  const mime = ready === file ? type : 'image/jpeg';
+  return readFile(ready.type === mime ? ready : new File([ready], ready.name, { type: mime }), { maxMB: 3 });
 }
 /** Uploads files one after another and saves each; stops at the first failure and returns what succeeded. */
 export async function uploadMany(files, uploadOptions, save) {

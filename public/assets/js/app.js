@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { esc, icon, BRAND_MARK, initials, toast } from './ui.js';
+import { esc, icon, BRAND_MARK, BRAND_NAME, initials, toast } from './ui.js';
 import { applyLanguage, languagePicker, LANGUAGES, resetTranslations } from './i18n.js';
 import * as Pub from './pages/public.js';
 import * as Auth from './pages/auth.js';
@@ -19,14 +19,14 @@ const routes = [
 
   ['/app', Inv.dashboard, 'app', 'investor'], ['/app/investments', Inv.investments, 'app', 'investor'], ['/app/investments/:id', Inv.investment, 'app', 'investor'],
   ['/app/invest', Inv.invest, 'app', 'investor'], ['/app/properties', Inv.properties, 'app', 'investor'], ['/app/properties/:slug', Inv.properties, 'app', 'investor'], ['/app/transactions', Inv.transactions, 'app', 'investor'],
-  ['/app/documents', Inv.documents, 'app', 'investor'], ['/app/redemptions', Inv.redemptions, 'app', 'investor'], ['/app/notifications', Inv.notifications, 'app', 'investor'],
+  ['/app/documents', Inv.documents, 'app', 'investor'], ['/app/withdrawals', Inv.withdrawals, 'app', 'investor'], ['/app/plans', Inv.plans, 'app', 'investor'], ['/app/notifications', Inv.notifications, 'app', 'investor'],
   ['/app/kyc', Inv.kyc, 'app', 'investor'], ['/app/support', Inv.support, 'app', 'investor'], ['/app/support/:id', Inv.ticket, 'app', 'investor'],
   ['/app/settings', Inv.settings, 'app', 'investor'],
 
   ['/admin', Adm.dashboard, 'admin', 'admin'], ['/admin/investors', Adm.investors, 'admin', 'admin'], ['/admin/investors/:id', Adm.investor, 'admin', 'admin'],
   ['/admin/kyc', Adm.kycList, 'admin', 'admin'], ['/admin/kyc/:id', Adm.kycReview, 'admin', 'admin'], ['/admin/investments', Adm.investments, 'admin', 'admin'],
   ['/admin/investments/:id', Adm.investment, 'admin', 'admin'], ['/admin/properties', Adm.properties, 'admin', 'admin'], ['/admin/properties/:id', Adm.propertyEdit, 'admin', 'admin'],
-  ['/admin/plans', Adm.plans, 'admin', 'admin'], ['/admin/payments', Adm.payments, 'admin', 'admin'], ['/admin/redemptions', Adm.redemptions, 'admin', 'admin'],
+  ['/admin/plans', Adm.plans, 'admin', 'admin'], ['/admin/payments', Adm.payments, 'admin', 'admin'], ['/admin/withdrawals', Adm.withdrawals, 'admin', 'admin'],
   ['/admin/support', Adm.tickets, 'admin', 'admin'], ['/admin/support/:id', Adm.ticket, 'admin', 'admin'], ['/admin/documents', Adm.documents, 'admin', 'admin'],
   ['/admin/content', Adm.content, 'admin', 'admin'], ['/admin/news', Adm.news, 'admin', 'admin'], ['/admin/reports', Adm.reports, 'admin', 'admin'],
   ['/admin/audit', Adm.audit, 'admin', 'admin'], ['/admin/admins', Adm.admins, 'admin', 'super'], ['/admin/settings', Adm.settings, 'admin', 'super'],
@@ -37,14 +37,17 @@ const routes = [
   return { path, page, layout, guard, re, keys };
 });
 
+// Old addresses that still appear in earlier notifications and emails.
+const REDIRECTS = { '/app/redemptions': '/app/withdrawals', '/admin/redemptions': '/admin/withdrawals' };
+
 export function navigate(to, { replace = false } = {}) {
   if (replace) history.replaceState({}, '', to);
   else history.pushState({}, '', to);
   render();
 }
 
-export async function refreshUser() {
-  try { state.user = (await api.get('/api/auth/me')).user; } catch { state.user = null; }
+export async function refreshUser({ keepOnError = false } = {}) {
+  try { state.user = (await api.get('/api/auth/me')).user; } catch { if (!keepOnError) state.user = null; }
   return state.user;
 }
 
@@ -70,13 +73,15 @@ export function liveReload(ctx, url, pick, initial) {
 let liveTimer = null;
 
 // Pages whose data changes when an admin confirms a payment.
-const LIVE = /^\/app(\/investments(\/\d+)?|\/transactions)?$/;
+const LIVE = /^\/app(\/investments(\/\d+)?|\/transactions|\/kyc|\/withdrawals)?$/;
 async function livePoll() {
   if (!state.user || document.hidden) return;
   const changed = await refreshUnread();
+  if (changed && state.user && state.user.role === 'investor') await refreshUser({ keepOnError: true });
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-  if (changed && LIVE.test(path) && !typing && !document.querySelector('.modal')) render();
+  const busy = document.querySelector('[aria-busy="true"]');
+  if (changed && LIVE.test(path) && !typing && !busy && !document.querySelector('.modal')) render();
 }
 
 export async function logout() {
@@ -120,9 +125,9 @@ function publicLayout(content, path) {
       </div>
       <div><h4>Invest</h4><a href="/properties">Properties</a><a href="/plans">Investment plans</a><a href="/how-it-works">How it works</a><a href="/register">Create account</a></div>
       <div><h4>Company</h4><a href="/about">About us</a><a href="/news">News</a><a href="/faqs">FAQs</a><a href="/contact">Contact</a></div>
-      <div><h4>Legal</h4><a href="/legal/terms">Terms &amp; Conditions</a><a href="/legal/privacy">Privacy Policy</a><a href="/legal/risk">Risk Disclosure</a><a href="/legal/kyc_aml">KYC / AML Policy</a><a href="/legal/redemption">Redemption Policy</a><a href="/legal/crypto">Crypto Payment Disclosure</a></div>
+      <div><h4>Legal</h4><a href="/legal/terms">Terms &amp; Conditions</a><a href="/legal/privacy">Privacy Policy</a><a href="/legal/risk">Risk Disclosure</a><a href="/legal/kyc_aml">KYC / AML Policy</a><a href="/legal/redemption">Withdrawal Policy</a><a href="/legal/crypto">Crypto Payment Disclosure</a></div>
     </div>
-    <div class="wrap site-foot__legal"><p>${esc(disclosure)}</p><p>${esc(s.registration || '')}</p><p>© ${new Date().getFullYear()} ${esc(s.brand || 'EstateInvest')}. All rights reserved.</p></div>
+    <div class="wrap site-foot__legal"><p>${esc(disclosure)}</p><p>${esc(s.registration || '')}</p><p>© ${new Date().getFullYear()} ${esc(s.brand || BRAND_NAME)}. All rights reserved.</p></div>
   </footer>`;
 }
 
@@ -141,15 +146,15 @@ function authLayout(content) {
 }
 
 const INVESTOR_NAV = [
-  ['/app', 'Overview', 'home'], ['/app/investments', 'Investments', 'chart'], ['/app/properties', 'Properties', 'building'],
-  ['/app/transactions', 'Transactions', 'list'], ['/app/documents', 'Documents', 'file'], ['/app/redemptions', 'Redemptions', 'refresh'],
+  ['/app', 'Overview', 'home'], ['/app/investments', 'Investments', 'chart'], ['/app/plans', 'Investment Plans', 'layers'], ['/app/properties', 'Properties', 'building'],
+  ['/app/transactions', 'Transactions', 'list'], ['/app/documents', 'Documents', 'file'], ['/app/withdrawals', 'Withdrawals', 'wallet'],
   ['/app/notifications', 'Notifications', 'bell', true], ['/app/kyc', 'Verification', 'shield'], ['/app/support', 'Support', 'help'],
 ];
 const ADMIN_NAV = [
   ['/admin', 'Dashboard', 'home'], ['/admin/investors', 'Investors', 'users', null, 'investors'], ['/admin/kyc', 'KYC Reviews', 'shield', null, 'kyc'],
   ['/admin/investments', 'Investments', 'chart', null, 'investments'], ['/admin/properties', 'Properties', 'building', null, 'properties'],
   ['/admin/plans', 'Investment Plans', 'layers', null, 'plans'], ['/admin/payments', 'Payments', 'card', null, 'payments'],
-  ['/admin/redemptions', 'Redemptions', 'refresh', null, 'redemptions'], ['/admin/support', 'Support', 'help', null, 'support'],
+  ['/admin/withdrawals', 'Withdrawals', 'wallet', null, 'redemptions'], ['/admin/support', 'Support', 'help', null, 'support'],
   ['/admin/documents', 'Documents', 'file', null, 'documents'], ['/admin/content', 'Website Content', 'edit', null, 'content'],
   ['/admin/news', 'News', 'globe', null, 'content'], ['/admin/reports', 'Reports', 'report', null, 'reports'], ['/admin/audit', 'Audit Logs', 'audit'],
 ];
@@ -205,6 +210,7 @@ export async function render() {
   const seq = ++renderSeq;
   const url = new URL(location.href);
   const path = url.pathname.replace(/\/+$/, '') || '/';
+  if (REDIRECTS[path]) return navigate(REDIRECTS[path] + url.search, { replace: true });
   let match = null;
   let params = {};
   for (const r of routes) {
@@ -213,6 +219,9 @@ export async function render() {
   }
   if (!match) { match = { page: Pub.notFound, layout: 'public' }; params = {}; }
 
+  // An admin can approve verification at any time; refresh so banners and limits are current.
+  if (state.user && match.guard === 'investor' && state.user.kyc_status !== 'approved') await refreshUser({ keepOnError: true });
+  if (seq !== renderSeq) return;
   // Guards
   const u = state.user;
   if (match.guard) {
@@ -256,7 +265,7 @@ export async function render() {
     view = { title: 'Something went wrong', html: `<section class="wrap section"><div class="empty">${icon('alert')}<h3>We couldn't load this page</h3><p>${esc(e.message || 'Unexpected error.')}</p><button class="btn btn--primary" data-retry>Try again</button></div></section>` };
   }
   if (seq !== renderSeq) return;
-  document.title = `${view.title ? view.title + ' · ' : ''}${state.site?.site?.brand || 'EstateInvest'}`;
+  document.title = `${view.title ? view.title + ' · ' : ''}${state.site?.site?.brand || BRAND_NAME}`;
   const main = root.querySelector('#main');
   main.innerHTML = view.html;
   main.querySelector('[data-retry]')?.addEventListener('click', () => render());
@@ -318,6 +327,40 @@ function closeMobileNavigation() {
   document.body.classList.remove('nav-open', 'side-open');
   document.querySelectorAll('[data-nav-toggle], [data-side-open]').forEach((button) => setNavigationToggle(button, false));
 }
+
+/* ------------------------------------------------------- tables on phones */
+// On narrow screens each table row becomes a stacked card. Every cell gets the text of its column
+// heading as a label; existing cell content is moved (not re-created), so event handlers keep working.
+function labelTables(root) {
+  const tables = root.matches?.('table.table') ? [root] : [...(root.querySelectorAll?.('table.table') || [])];
+  for (const table of tables) {
+    const heads = [...table.querySelectorAll(':scope > thead th')].map((th) => {
+      const copy = th.cloneNode(true);
+      copy.querySelectorAll('small, .sr-only').forEach((n) => n.remove());
+      return copy.textContent.trim();
+    });
+    for (const tr of table.querySelectorAll(':scope > tbody > tr')) {
+      [...tr.children].forEach((td, i) => {
+        if (td.tagName !== 'TD' || td.dataset.stacked) return;
+        td.dataset.stacked = '1';
+        const value = document.createElement('div');
+        value.className = 'td-value';
+        while (td.firstChild) value.appendChild(td.firstChild);
+        if (heads[i]) {
+          const labelEl = document.createElement('span');
+          labelEl.className = 'td-label';
+          labelEl.setAttribute('aria-hidden', 'true');
+          labelEl.textContent = heads[i];
+          td.appendChild(labelEl);
+        } else td.classList.add('td--bare');
+        td.appendChild(value);
+      });
+    }
+  }
+}
+new MutationObserver((records) => {
+  for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1 && (node.matches('table.table, tr') || node.querySelector('table.table'))) labelTables(node.matches('tr') ? node.closest('table.table') || node : node);
+}).observe(document.getElementById('app'), { childList: true, subtree: true });
 
 /* --------------------------------------------------------------------- boot */
 document.addEventListener('click', (e) => {

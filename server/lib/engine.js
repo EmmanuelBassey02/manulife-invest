@@ -25,7 +25,7 @@ const TRANSITIONS = {
 
 const LABELS = {
   pending: 'Pending', payment_awaiting: 'Awaiting payment', payment_confirmed: 'Payment confirmed', active: 'Active',
-  maturing: 'Maturing', matured: 'Matured', completed: 'Completed', redeemed: 'Redeemed', cancelled: 'Cancelled',
+  maturing: 'Maturing', matured: 'Matured', completed: 'Completed', redeemed: 'Withdrawn', cancelled: 'Cancelled',
   suspended: 'Suspended', under_review: 'Under review', disputed: 'Disputed',
 };
 
@@ -92,14 +92,14 @@ async function transition(h, inv, to, { reason, actor, force = false } = {}) {
 const MESSAGES = {
   active: (i) => ['Your investment is active', `Investment ${i.ref} is now active. It matures on ${fmtDate(i.maturity_date)}.`],
   maturing: (i) => ['Your investment matures soon', `Investment ${i.ref} matures on ${fmtDate(i.maturity_date)}.`],
-  matured: (i) => ['Your investment has matured', `Investment ${i.ref} has reached maturity. You can now review redemption options in your dashboard.`],
+  matured: (i) => ['Your investment has matured', `Investment ${i.ref} has reached maturity. You can now withdraw it from the Withdrawals page in your dashboard.`],
   payment_confirmed: (i) => ['Payment confirmed', `We confirmed your payment for investment ${i.ref}.`],
   cancelled: (i) => ['Investment cancelled', `Investment ${i.ref} was cancelled.`],
   suspended: (i) => ['Investment suspended', `Investment ${i.ref} has been suspended. Contact support for details.`],
   under_review: (i) => ['Investment under review', `Investment ${i.ref} is under review by our team.`],
   disputed: (i) => ['Investment marked as disputed', `Investment ${i.ref} has been marked as disputed. Our team will contact you.`],
   completed: (i) => ['Investment completed', `Investment ${i.ref} is complete.`],
-  redeemed: (i) => ['Investment redeemed', `Investment ${i.ref} has been redeemed.`],
+  redeemed: (i) => ['Investment withdrawn', `Investment ${i.ref} has been paid out and withdrawn.`],
 };
 
 async function announce(inv) {

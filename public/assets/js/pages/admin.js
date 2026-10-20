@@ -1,7 +1,7 @@
 import { api, qs } from '../api.js';
 import {
   esc, icon, money, num, date, dateTime, ago, badge, bindForm, field, check, toast, modal, confirmDialog, TYPE_LABEL, DEV_LABEL,
-  duration, empty, uploadFile, uploadMany, fileSize, copyText, shortHash, sentence, pager, initials, debounce, statusText, pctText, returnPeriod,
+  duration, empty, uploadFile, uploadMany, fileSize, copyText, shortHash, sentence, label, pager, initials, debounce, statusText, pctText, returnPeriod,
 } from '../ui.js';
 import { propertyVisual } from '../art.js';
 import { bars } from '../charts.js';
@@ -57,7 +57,7 @@ export async function dashboard(ctx) {
       ${tile('/admin/payments?status=submitted', 'Payments to verify', s.payments_review, s.payments_review ? 'warn' : '')}
       ${tile('/admin/investments?status=maturing', 'Maturing soon', s.maturing)}
       ${tile('/admin/investments?status=matured', 'Matured', s.matured)}
-      ${tile('/admin/redemptions?status=requested', 'Redemption requests', s.pending_redemptions, s.pending_redemptions ? 'warn' : '')}
+      ${tile('/admin/withdrawals?status=requested', 'Withdrawal requests', s.pending_redemptions, s.pending_redemptions ? 'warn' : '')}
     </div>
     <div class="grid grid--dash">
       <section class="card"><header class="card__head"><h2 class="card__title">Investment activity</h2>
@@ -104,9 +104,14 @@ export async function investor(ctx) {
         ${d.investments.map((i) => `<tr><td><a href="/admin/investments/${i.id}">${esc(i.ref)}</a></td><td>${esc(i.property_name)}</td><td>${esc(i.plan_name)}</td><td class="num">${money(i.amount_usd)}</td><td>${badge(i.status, i.status_label)}</td><td>${date(i.maturity_date)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted pad">No investments yet.</p>'}</section>
     </div>
     <section class="card card--table"><header class="card__head"><h2 class="card__title">Transactions</h2></header>${d.payments.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Type</th><th>Investment</th><th class="num">Amount</th><th>Tx hash</th><th>Status</th><th>Date</th></tr></thead><tbody>
-      ${d.payments.map((p) => `<tr><td>${esc(p.ref)}</td><td>${esc(sentence(p.kind))}</td><td>${esc(p.investment_ref || '—')}</td><td class="num">${num(p.amount_crypto, 8)} ${esc(p.currency)}</td><td class="mono">${esc(shortHash(p.tx_hash))}</td><td>${badge(p.status)}</td><td>${date(p.created_at)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted pad">No transactions.</p>'}</section>
+      ${d.payments.map((p) => `<tr><td>${esc(p.ref)}</td><td>${esc(label(p.kind))}</td><td>${esc(p.investment_ref || '—')}</td><td class="num">${num(p.amount_crypto, 8)} ${esc(p.currency)}</td><td class="mono">${esc(shortHash(p.tx_hash))}</td><td>${badge(p.status)}</td><td>${date(p.created_at)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted pad">No transactions.</p>'}</section>
     <div class="grid grid--dash">
-      <section class="card"><h2 class="card__title">Documents issued</h2>${d.documents.length ? `<ul class="doclist">${d.documents.map((x) => `<li>${icon('file')}<div><strong>${esc(x.title)}</strong><small>${esc(sentence(x.category))} · ${date(x.created_at)}</small></div>${x.file_id ? `<a class="btn btn--ghost btn--sm" target="_blank" href="/api/files/${x.file_id}">View</a>` : ''}</li>`).join('')}</ul>` : '<p class="muted">None yet.</p>'}</section>
+      <section class="card card--table"><header class="card__head"><h2 class="card__title">Withdrawals</h2></header>${d.redemptions.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Investment</th><th class="num">Amount</th><th>To wallet</th><th>Status</th><th>Requested</th></tr></thead><tbody>
+        ${d.redemptions.map((r) => `<tr><td><a href="/admin/withdrawals">${esc(r.ref)}</a></td><td>${esc(r.investment_ref)}</td><td class="num">${money(r.amount_usd)}</td><td class="mono"><span title="${esc(r.destination_wallet)}">${esc(shortHash(r.destination_wallet))}</span><br><small class="muted">${esc(r.currency)} · ${esc(r.network)}</small></td><td>${badge(r.status)}</td><td>${date(r.created_at)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted pad">No withdrawal requests.</p>'}</section>
+      <section class="card"><h2 class="card__title">Payout wallets</h2>${(d.wallets || []).length ? `<ul class="doclist">${d.wallets.map((w) => `<li>${icon('wallet')}<div><strong>${esc(w.currency)} · ${esc(w.network)}</strong><small class="mono wrap-any">${esc(w.address)}</small><small>Updated ${date(w.updated_at)}</small></div></li>`).join('')}</ul>` : '<p class="muted">The investor has not saved any payout wallets.</p>'}</section>
+    </div>
+    <div class="grid grid--dash">
+      <section class="card"><h2 class="card__title">Documents issued</h2>${d.documents.length ? `<ul class="doclist">${d.documents.map((x) => `<li>${icon('file')}<div><strong>${esc(x.title)}</strong><small>${esc(label(x.category))} · ${date(x.created_at)}</small></div>${x.file_id ? `<a class="btn btn--ghost btn--sm" target="_blank" href="/api/files/${x.file_id}">View</a>` : ''}</li>`).join('')}</ul>` : '<p class="muted">None yet.</p>'}</section>
       <section class="card"><h2 class="card__title">Support tickets</h2>${d.tickets.length ? `<ul class="doclist">${d.tickets.map((t) => `<li>${icon('help')}<div><strong><a href="/admin/support/${t.id}">${esc(t.ref)}</a> · ${esc(t.subject)}</strong><small>${ago(t.updated_at)}</small></div>${badge(t.status)}</li>`).join('')}</ul>` : '<p class="muted">None.</p>'}</section>
     </div>`,
     mount(root) {
@@ -142,7 +147,7 @@ function issueDocModal({ userId = null, investments = [], investors = null }, do
     body: `<form class="form" data-f novalidate><div class="form-grid">
       ${investors ? field({ name: 'user_id', label: 'Investor', full: true, options: [['', 'All investors (shared document)'], ...investors.map((i) => [i.id, `${i.first_name} ${i.last_name} · ${i.email}`])] }) : `<input type="hidden" name="user_id" value="${userId}">`}
       ${investments.length ? field({ name: 'investment_id', label: 'Investment', full: true, options: [['', 'Not linked to an investment'], ...investments.map((i) => [i.id, `${i.ref} · ${i.property_name}`])] }) : ''}
-      ${field({ name: 'category', label: 'Category', required: true, options: [['agreement', 'Investment agreement'], ['terms', 'Terms'], ['risk', 'Risk disclosure'], ['property', 'Property document'], ['statement', 'Statement'], ['receipt', 'Receipt'], ['certificate', 'Certificate'], ['redemption', 'Redemption confirmation'], ['other', 'Other']] })}
+      ${field({ name: 'category', label: 'Category', required: true, options: [['agreement', 'Investment agreement'], ['terms', 'Terms'], ['risk', 'Risk disclosure'], ['property', 'Property document'], ['statement', 'Statement'], ['receipt', 'Receipt'], ['certificate', 'Certificate'], ['redemption', 'Withdrawal confirmation'], ['other', 'Other']] })}
       ${field({ name: 'title', label: 'Title', required: true, attrs: 'maxlength="160"' })}
       <div class="field field--full"><label for="docfile">File</label><input id="docfile" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" required><p class="field__hint">PDF, JPG, PNG or WEBP up to 10 MB. You can select several files at once.</p><p class="field__error" hidden></p></div>
     </div><p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Issue document</button></div></form>`,
@@ -301,7 +306,7 @@ export async function investment(ctx) {
         <h3 class="card__sub">Status history</h3><ol class="timeline">${d.history.map((h) => `<li><span class="timeline__dot"></span><div><strong>${esc(h.to_label)}</strong>${h.reason ? `<p>${esc(h.reason)}</p>` : ''}<small>${dateTime(h.created_at)} · ${esc(h.actor_email || 'System')}</small></div></li>`).join('')}</ol></section>
     </div>
     <section class="card card--table"><header class="card__head"><h2 class="card__title">Payments</h2></header><div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Type</th><th class="num">Amount</th><th>Wallet</th><th>Tx hash</th><th>Confirmations</th><th>Status</th><th>Date</th></tr></thead><tbody>
-      ${d.payments.map((p) => `<tr><td>${esc(p.ref)}</td><td>${esc(sentence(p.kind))}</td><td class="num">${num(p.amount_crypto, 8)} ${esc(p.currency)}</td><td class="mono">${esc(shortHash(p.wallet_address))}</td><td class="mono">${esc(shortHash(p.tx_hash))}</td><td>${p.confirmations}</td><td>${badge(p.status)}</td><td>${date(p.created_at)}</td></tr>`).join('')}</tbody></table></div></section>`,
+      ${d.payments.map((p) => `<tr><td>${esc(p.ref)}</td><td>${esc(label(p.kind))}</td><td class="num">${num(p.amount_crypto, 8)} ${esc(p.currency)}</td><td class="mono">${esc(shortHash(p.wallet_address))}</td><td class="mono">${esc(shortHash(p.tx_hash))}</td><td>${p.confirmations}</td><td>${badge(p.status)}</td><td>${date(p.created_at)}</td></tr>`).join('')}</tbody></table></div></section>`,
     mount(root) {
       const f = root.querySelector('[data-f]');
       if (f) bindForm(f, async (v) => { await api.post(`/api/admin/investments/${i.id}/status`, v); toast('Status updated.'); ctx.reload(); });
@@ -319,7 +324,7 @@ export async function payments(ctx) {
       { name: 'status', label: 'Status', options: [['', 'All statuses'], ['submitted', 'Verifying'], ['awaiting', 'Awaiting payment'], ['confirmed', 'Confirmed'], ['rejected', 'Rejected'], ['expired', 'Expired']] },
       { name: 'kind', label: 'Type', options: [['', 'All types'], ['deposit', 'Deposits'], ['redemption', 'Payouts']] }] })}
     <section class="card card--table">${d.items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Investor</th><th>Investment</th><th class="num">Amount</th><th>Network / wallet</th><th>Tx hash</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>
-      ${d.items.map((p) => `<tr><td><strong>${esc(p.ref)}</strong><br><small class="muted">${esc(sentence(p.kind))}</small></td><td>${esc(p.investor_name)}</td><td>${p.investment_id ? `<a href="/admin/investments/${p.investment_id}">${esc(p.investment_ref)}</a>` : '—'}</td>
+      ${d.items.map((p) => `<tr><td><strong>${esc(p.ref)}</strong><br><small class="muted">${esc(label(p.kind))}</small></td><td>${esc(p.investor_name)}</td><td>${p.investment_id ? `<a href="/admin/investments/${p.investment_id}">${esc(p.investment_ref)}</a>` : '—'}</td>
       <td class="num">${num(p.amount_crypto, 8)} ${esc(p.currency)}<br><small class="muted">${money(p.amount_usd)}</small></td><td>${esc(p.network)}<br><small class="mono muted">${esc(shortHash(p.wallet_address, 6))}</small></td>
       <td class="mono">${p.tx_hash ? `<button class="link mono" data-copy="${esc(p.tx_hash)}" title="Copy">${esc(shortHash(p.tx_hash))}</button>` : '—'}</td><td>${badge(p.status)}${p.note ? `<br><small class="muted">${esc(p.note)}</small>` : ''}</td><td>${date(p.created_at)}</td>
       <td>${p.kind === 'deposit' && ['awaiting', 'submitted'].includes(p.status) ? `<button class="btn btn--gold btn--sm" data-verify="${p.id}">Review</button>` : ''}</td></tr>`).join('')}
@@ -350,19 +355,19 @@ export async function payments(ctx) {
   };
 }
 
-/* --------------------------------------------------------------- redemptions */
-export async function redemptions(ctx) {
+/* --------------------------------------------------------------- withdrawals */
+export async function withdrawals(ctx) {
   const { items } = await api.get(`/api/admin/redemptions${qs({ status: ctx.query.status })}`);
   const tabs = [['', 'All'], ['requested', 'Requested'], ['under_review', 'Under review'], ['approved', 'Approved'], ['paid', 'Paid'], ['rejected', 'Rejected']];
   const next = { requested: ['under_review', 'approved', 'rejected'], under_review: ['approved', 'rejected'], approved: ['paid', 'rejected'] };
   return {
-    title: 'Redemptions',
-    html: `${head('Redemptions', 'Review requests and record payouts.', `<a class="btn btn--ghost" href="/api/admin/reports/redemptions" data-native>${icon('download')} Export</a>`)}
-    <nav class="tabs">${tabs.map(([k, l]) => `<a class="tabs__tab" href="/admin/redemptions${k ? `?status=${k}` : ''}" ${(ctx.query.status || '') === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+    title: 'Withdrawals',
+    html: `${head('Withdrawals', 'Review withdrawal requests and record payouts.', `<a class="btn btn--ghost" href="/api/admin/reports/redemptions" data-native>${icon('download')} Export</a>`)}
+    <nav class="tabs">${tabs.map(([k, l]) => `<a class="tabs__tab" href="/admin/withdrawals${k ? `?status=${k}` : ''}" ${(ctx.query.status || '') === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
     <section class="card card--table">${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Investor</th><th>Investment</th><th class="num">Amount</th><th>Destination</th><th>Status</th><th>Requested</th><th></th></tr></thead><tbody>
       ${items.map((r) => `<tr><td><strong>${esc(r.ref)}</strong></td><td>${esc(r.first_name)} ${esc(r.last_name)}</td><td><a href="/admin/investments/${r.investment_id}">${esc(r.investment_ref)}</a></td><td class="num">${money(r.amount_usd)}<br><small class="muted">principal ${money(r.principal)}</small></td>
       <td><span class="mono">${esc(shortHash(r.destination_wallet))}</span><br><small class="muted">${esc(r.currency)} · ${esc(r.network)}</small></td><td>${badge(r.status)}${r.tx_hash ? `<br><small class="mono muted">${esc(shortHash(r.tx_hash))}</small>` : ''}</td><td>${date(r.created_at)}</td>
-      <td>${next[r.status] ? `<button class="btn btn--gold btn--sm" data-act="${r.id}">Update</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : empty('No redemption requests', 'Requests from investors will appear here.')}</section>`,
+      <td>${next[r.status] ? `<button class="btn btn--gold btn--sm" data-act="${r.id}">Update</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : empty('No withdrawal requests', 'Requests from investors will appear here.')}</section>`,
     mount(root) {
       root.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
         const r = items.find((x) => x.id === Number(b.dataset.act));
@@ -380,7 +385,7 @@ export async function redemptions(ctx) {
             form.decision.addEventListener('change', sync); sync();
             bindForm(form, async (v) => {
               await api.post(`/api/admin/redemptions/${r.id}/decision`, { decision: v.decision, note: v.note || undefined, tx_hash: v.tx_hash || undefined, amount_crypto: v.amount_crypto ?? undefined });
-              close(); toast('Redemption updated.'); ctx.reload();
+              close(); toast('Withdrawal updated.'); ctx.reload();
             });
           },
         });
@@ -590,7 +595,7 @@ export async function documents(ctx) {
     title: 'Documents',
     html: `${head('Investor documents', 'Agreements, statements and other documents issued to investors.', `<button class="btn btn--gold" data-new>${icon('upload')} Issue document</button>`)}
     <section class="card card--table">${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Category</th><th>Investor</th><th>Investment</th><th>Issued</th><th></th></tr></thead><tbody>
-      ${items.map((x) => `<tr><td><strong>${esc(x.title)}</strong></td><td>${esc(sentence(x.category))}</td><td>${x.user_id ? `${esc(x.first_name)} ${esc(x.last_name)}` : '<span class="muted">All investors</span>'}</td><td>${esc(x.investment_ref || '—')}</td><td>${date(x.created_at)}</td><td>${x.url ? `<a class="btn btn--ghost btn--sm" target="_blank" href="${x.url}">View</a>` : ''}</td></tr>`).join('')}
+      ${items.map((x) => `<tr><td><strong>${esc(x.title)}</strong></td><td>${esc(label(x.category))}</td><td>${x.user_id ? `${esc(x.first_name)} ${esc(x.last_name)}` : '<span class="muted">All investors</span>'}</td><td>${esc(x.investment_ref || '—')}</td><td>${date(x.created_at)}</td><td>${x.url ? `<a class="btn btn--ghost btn--sm" target="_blank" href="${x.url}">View</a>` : ''}</td></tr>`).join('')}
     </tbody></table></div>` : empty('No documents issued', 'Upload agreements, statements or notices for investors.')}</section>
     <p class="note">${icon('info')} Certificates and payment receipts are generated automatically for every funded investment.</p>`,
     mount(root) { root.querySelector('[data-new]').addEventListener('click', () => issueDocModal({ investors: L.investors }, () => ctx.reload())); },
@@ -629,7 +634,7 @@ export async function content(ctx) {
     how_it_works: listEditor('steps', hw.steps || [], [{ key: 'title', label: 'Step title' }, { key: 'body', label: 'Description', type: 'textarea', full: true }]),
     faqs: listEditor('faqs', c.faqs || [], [{ key: 'q', label: 'Question' }, { key: 'category', label: 'Category' }, { key: 'a', label: 'Answer', type: 'textarea', full: true }]),
     testimonials: `<div class="callout callout--warn">${icon('alert')}<div><p>Publish only genuine testimonials with the investor’s permission.</p></div></div>${listEditor('testimonials', c.testimonials || [], [{ key: 'name', label: 'Name' }, { key: 'role', label: 'Detail' }, { key: 'quote', label: 'Quote', type: 'textarea', full: true }])}`,
-    legal: Object.entries({ terms: 'Terms & Conditions', privacy: 'Privacy Policy', investment_terms: 'Investment Terms', risk: 'Risk Disclosure', kyc_aml: 'KYC / AML Policy', redemption: 'Redemption & Refund Policy', investor_agreement: 'Investor Agreement', crypto: 'Crypto Payment Disclosure' })
+    legal: Object.entries({ terms: 'Terms & Conditions', privacy: 'Privacy Policy', investment_terms: 'Investment Terms', risk: 'Risk Disclosure', kyc_aml: 'KYC / AML Policy', redemption: 'Withdrawal & Refund Policy', investor_agreement: 'Investor Agreement', crypto: 'Crypto Payment Disclosure' })
       .map(([k, l]) => `<details class="acc"><summary>${esc(lg[k]?.title || l)}${icon('chevron')}</summary>${field({ name: `${k}.title`, label: 'Title', value: lg[k]?.title || l })}${field({ name: `${k}.body`, label: 'Content', type: 'textarea', rows: 10, value: lg[k]?.body || '', hint: 'Formatting: ## heading, - bullet, **bold**.' })}</details>`).join(''),
     disclosures: field({ name: 'footer', label: 'Footer risk disclosure', type: 'textarea', rows: 4, value: c.disclosures?.footer || '' }),
   };
@@ -690,7 +695,7 @@ export async function news(ctx) {
 
 /* ------------------------------------------------------------------- reports */
 export async function reports() {
-  const types = [['investors', 'Investors', 'All registered investors with KYC status and total invested.'], ['investments', 'Investments', 'Every investment with amounts, status and dates.'], ['payments', 'Payments', 'All deposits and payouts with transaction hashes.'], ['redemptions', 'Redemptions', 'Redemption requests and payout details.']];
+  const types = [['investors', 'Investors', 'All registered investors with KYC status and total invested.'], ['investments', 'Investments', 'Every investment with amounts, status and dates.'], ['payments', 'Payments', 'All deposits and payouts with transaction hashes.'], ['redemptions', 'Withdrawals', 'Withdrawal requests and payout details.']];
   return {
     title: 'Reports',
     html: `${head('Reports', 'Export platform data as CSV (opens in Excel, Numbers and Google Sheets).')}
@@ -727,12 +732,12 @@ const pretty = (s) => { try { return JSON.stringify(JSON.parse(s), null, 2); } c
 /* -------------------------------------------------------------- super admin */
 export async function admins(ctx) {
   const { items, permissions } = await api.get('/api/admin/admins');
-  const permBoxes = (cur = []) => `<fieldset class="perm-grid"><legend>Permissions (for admins)</legend>${permissions.map((p) => `<label class="check-inline"><input type="checkbox" name="permissions" data-group value="${p}" ${cur.includes(p) ? 'checked' : ''}> ${esc(sentence(p))}</label>`).join('')}</fieldset>`;
+  const permBoxes = (cur = []) => `<fieldset class="perm-grid"><legend>Permissions (for admins)</legend>${permissions.map((p) => `<label class="check-inline"><input type="checkbox" name="permissions" data-group value="${p}" ${cur.includes(p) ? 'checked' : ''}> ${esc(label(p))}</label>`).join('')}</fieldset>`;
   return {
     title: 'Administrators',
     html: `${head('Administrators', 'Manage admin accounts, roles and permissions.', `<button class="btn btn--gold" data-new>${icon('plus')} Add administrator</button>`)}
     <section class="card card--table"><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Role</th><th>Permissions</th><th>Status</th><th>Last login</th><th></th></tr></thead><tbody>
-      ${items.map((u) => `<tr><td>${person(`${u.first_name} ${u.last_name}`, u.email)}</td><td>${u.role === 'super_admin' ? 'Super admin' : 'Admin'}</td><td class="small">${u.role === 'super_admin' ? 'Everything' : Array.isArray(u.permissions) ? esc(u.permissions.map(sentence).join(', ') || 'None') : 'All areas'}</td><td>${badge(u.status)}</td><td>${dateTime(u.last_login_at)}</td><td>${u.id !== state.user.id ? `<button class="btn btn--ghost btn--sm" data-edit="${u.id}">Edit</button>` : '<span class="muted small">You</span>'}</td></tr>`).join('')}
+      ${items.map((u) => `<tr><td>${person(`${u.first_name} ${u.last_name}`, u.email)}</td><td>${u.role === 'super_admin' ? 'Super admin' : 'Admin'}</td><td class="small">${u.role === 'super_admin' ? 'Everything' : Array.isArray(u.permissions) ? esc(u.permissions.map(label).join(', ') || 'None') : 'All areas'}</td><td>${badge(u.status)}</td><td>${dateTime(u.last_login_at)}</td><td>${u.id !== state.user.id ? `<button class="btn btn--ghost btn--sm" data-edit="${u.id}">Edit</button>` : '<span class="muted small">You</span>'}</td></tr>`).join('')}
     </tbody></table></div></section>`,
     mount(root) {
       root.querySelector('[data-new]').addEventListener('click', () => modal({
@@ -770,8 +775,8 @@ export async function settings(ctx) {
     <form class="card form" data-inv novalidate><h2 class="card__title">Investing</h2>
       ${check({ name: 'enabled', label: 'Allow new investments (keep off until legal and regulatory approvals are in place)', checked: iv.enabled })}
       ${check({ name: 'kyc_required', label: 'Require approved KYC before investing', checked: iv.kyc_required })}
-      ${check({ name: 'redemptions_enabled', label: 'Allow redemption requests', checked: iv.redemptions_enabled })}
-      ${check({ name: 'early_redemption', label: 'Allow early redemption requests (before maturity)', checked: iv.early_redemption })}
+      ${check({ name: 'redemptions_enabled', label: 'Allow withdrawal requests', checked: iv.redemptions_enabled })}
+      ${check({ name: 'early_redemption', label: 'Allow early withdrawal requests (before maturity)', checked: iv.early_redemption })}
       ${field({ name: 'maturing_window_days', label: '“Maturing” notice window (days)', type: 'number', required: true, value: iv.maturing_window_days, attrs: 'min="1" max="90"' })}
       <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Save investing rules</button></div></form>
     <form class="card form" data-pay novalidate><h2 class="card__title">Crypto payments</h2>
