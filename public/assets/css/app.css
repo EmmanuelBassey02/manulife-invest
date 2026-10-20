@@ -1,5 +1,5 @@
 /* =========================================================================
-   EstateInvest — navy & gold luxury theme
+   SapronLife Financial Investment — green theme
    Display: Playfair Display · UI: Manrope
    ========================================================================= */
 :root {
@@ -764,7 +764,8 @@ button { font: inherit; color: inherit; }
 .modal__panel--wide { max-width: 820px; }
 .modal__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
 .modal__head h2 { font-size: 1.25rem; margin: 0; }
-.modal__body { padding: 20px 22px 22px; overflow-y: auto; display: grid; gap: 14px; }
+.modal__body { padding: 20px 22px 22px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; display: grid; gap: 14px; }
+.modal__head, .modal__foot { flex: none; }
 .modal__foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--line); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(12px) scale(.98); } }
@@ -876,7 +877,11 @@ button { font: inherit; color: inherit; }
   .form__actions--left .btn { width: auto; }
   .thread__msg { max-width: 100%; }
   .modal { padding: 0; place-items: end stretch; }
-  .modal__panel { max-height: 92dvh; border-radius: 16px 16px 0 0; }
+  .modal { overflow: hidden; }
+  .modal__panel { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); border-radius: 16px 16px 0 0; }
+  .modal__body { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+  /* Keep a dialog's main button visible while its form scrolls */
+  .modal__body > .form > .form__actions:last-child { position: sticky; bottom: calc(-22px - env(safe-area-inset-bottom, 0px)); z-index: 2; margin: 4px -22px calc(-22px - env(safe-area-inset-bottom, 0px)); padding: 12px 22px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid var(--line); }
   .callout { flex-wrap: wrap; }
   .callout .btn { width: 100%; }
   .copy { flex-direction: column; }
@@ -1060,3 +1065,90 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .plan-cell__txt { display: grid; gap: 1px; }
 .plan-cell__txt strong { font-size: .88rem; text-transform: uppercase; letter-spacing: .01em; color: var(--ink); }
 .plan-cell__txt small { display: block; max-width: 26ch; white-space: normal; font-size: .76rem; font-weight: 500; line-height: 1.35; color: var(--muted); }
+
+/* =====================================================================
+   SapronLife additions: withdrawals, payout wallets, plan selection, phone layouts
+   ===================================================================== */
+.td-label { display: none; }
+.stepper__caption { display: none; }
+.callout p strong { display: inline; margin: 0; }
+.brand__logo { width: 200px; }
+.site-head .brand__logo { width: 172px; }
+.side > .brand .brand__logo { width: 100%; }
+
+/* Withdrawals */
+.ready-list, .wallet-list { list-style: none; margin: 0; padding: 0; }
+.ready-item, .wallet-item { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line-2); }
+.ready-item:last-child, .wallet-item:last-child { border-bottom: 0; }
+.ready-item__main, .wallet-item__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ready-item__main span { font-size: .9rem; }
+.ready-item__main small, .wallet-item__main small { font-size: .8rem; }
+.ready-item__amt { text-align: right; }
+.ready-item__amt small { display: block; font-size: .74rem; color: var(--muted); }
+.ready-item__amt strong { font-size: 1.05rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.wallet-item__addr { font-size: .8rem; color: var(--text); word-break: break-all; }
+.wallet-item__actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.wallet-item .coin__mark { flex: none; }
+.summary--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.btn[disabled] { cursor: not-allowed; }
+
+/* Plan selection inside the invest flow (same table as the website) */
+.flow [data-plans] { margin-bottom: 26px; }
+.flow [data-plans] .table-wrap { border: 1px solid var(--line); border-radius: var(--r); }
+.table--partner tr.is-selected > td { background: #e8f4eb; }
+.table--partner tr.is-selected > td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.table--partner td.plan-action { white-space: nowrap; }
+
+/* Tablets and phones */
+@media (max-width: 720px) {
+  .top__search { display: none; }
+  .top__right { gap: 6px; }
+  .top__right .language-picker__trigger > span:first-child { display: none; }
+  .top__right .language-picker__trigger { padding: 0 8px; gap: 6px; }
+  .stepper { margin-bottom: 10px; justify-content: space-between; overflow: visible; }
+  .stepper li { min-width: 0; flex: 1 1 0; }
+  .stepper em { display: none; }
+  .stepper__caption { display: block; margin: 0 0 20px; text-align: center; font-size: .88rem; color: var(--muted); }
+  .stepper__caption span { color: var(--ink); font-weight: 700; }
+  .stepper__caption em { font-style: normal; }
+  .ready-item { flex-wrap: wrap; gap: 10px 16px; }
+  .ready-item__main { flex: 1 1 100%; }
+  .ready-item__amt { text-align: left; }
+  .ready-item .btn { margin-left: auto; }
+  .wallet-item { align-items: flex-start; }
+  .summary--2 { grid-template-columns: minmax(0, 1fr); }
+  .side > .brand { max-width: 200px; }
+}
+
+/* Phones: every table row becomes a stacked card with labelled values */
+@media (max-width: 640px) {
+  .table-wrap { overflow-x: visible; }
+  .table, .table.table--partner { min-width: 0; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+  .table tr { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .table tbody tr:last-child { border-bottom: 0; }
+  .table tbody tr:hover td { background: none; }
+  .table td, .table.table--partner td, .table--compact td, .table--plans td {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+    padding: 6px 0; border: 0; white-space: normal; text-align: right; font-size: .9rem;
+  }
+  .table td .td-label { display: block; flex: 0 0 auto; max-width: 46%; text-align: left; color: var(--muted); font-size: .78rem; font-weight: 600; line-height: 1.4; padding-top: 2px; }
+  .table td .td-value { min-width: 0; overflow-wrap: anywhere; }
+  .table td:first-child { justify-content: flex-start; text-align: left; padding: 0 0 6px; font-size: .98rem; font-weight: 600; }
+  .table td:first-child .td-label { display: none; }
+  .table td.td--bare { justify-content: flex-end; padding-top: 10px; }
+  .table td.td--bare .td-value { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .table td.td--bare .btn { min-width: 120px; }
+  .table .num { text-align: right; }
+  .table.table--partner td:first-child { min-width: 0; padding-left: 0; }
+  .table--partner tr.is-selected { background: #e8f4eb; border-radius: 10px; }
+  .table--partner tr.is-selected > td { background: none; }
+  .table--partner tr.is-selected > td:first-child { box-shadow: none; }
+  .table--partner td { font-size: .95rem; }
+  .table--partner td.plan-action { justify-content: stretch; padding-top: 10px; }
+  .table--partner td.plan-action .td-value, .table--partner td.plan-action .btn { width: 100%; }
+  .plan-cell__txt small { max-width: none; }
+  .section--plans .table-wrap { padding: 4px 4px; }
+  .card--table > .table-wrap { margin: 0; }
+}

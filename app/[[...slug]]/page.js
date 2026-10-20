@@ -1,4 +1,4 @@
-export default function EstateInvestPage() {
+export default function SapronLifePage() {
   return (
     <div id="app" data-layout="">
       <div className="loading" role="status">

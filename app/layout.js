@@ -1,8 +1,9 @@
 import LegacyClient from './legacy-client';
 
 export const metadata = {
-  title: 'EstateInvest · Real estate investment platform',
+  title: 'SapronLife Financial Investment · Real estate investment platform',
   description: 'Invest in carefully structured real estate opportunities and track your portfolio from one secure platform.',
+  icons: { icon: [{ url: '/favicon.png', type: 'image/png' }], apple: '/apple-touch-icon.png' },
 };
 
 export const viewport = {

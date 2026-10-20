@@ -31,7 +31,7 @@ module.exports = {
   LIBRETRANSLATE_URL: env.LIBRETRANSLATE_URL || 'http://127.0.0.1:5000/translate',
   LIBRETRANSLATE_API_KEY: env.LIBRETRANSLATE_API_KEY || '',
   RESEND_API_KEY: env.RESEND_API_KEY || '',
-  MAIL_FROM: env.MAIL_FROM || 'EstateInvest <no-reply@estateinvest.example>',
+  MAIL_FROM: env.MAIL_FROM || 'SapronLife Financial Investment <no-reply@sapronlife.example>',
   SEED_ADMIN_EMAIL: env.SEED_ADMIN_EMAIL || 'admin@estateinvest.com',
   SEED_ADMIN_PASSWORD: env.SEED_ADMIN_PASSWORD || 'Admin@12345',
   SEED_DEMO_DATA: env.SEED_DEMO_DATA !== '0',

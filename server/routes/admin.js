@@ -76,17 +76,18 @@ function register(r) {
     A.requireAdmin(ctx, 'investors');
     const u = await db.get("SELECT * FROM users WHERE id=? AND role='investor' AND status<>'deleted'", [Number(ctx.params.id) || 0]);
     if (!u) throw NotFound('Investor');
-    const [invs, pays, docs, tickets, kyc, reds] = await Promise.all([
+    const [invs, pays, docs, tickets, kyc, reds, wallets] = await Promise.all([
       db.all(`${INV_SELECT} WHERE i.user_id=? ORDER BY i.id DESC`, [u.id]),
       db.all('SELECT p.*, i.ref AS investment_ref FROM payments p LEFT JOIN investments i ON i.id=p.investment_id WHERE p.user_id=? ORDER BY p.id DESC', [u.id]),
       db.all('SELECT * FROM documents WHERE user_id=? ORDER BY id DESC', [u.id]),
       db.all('SELECT * FROM tickets WHERE user_id=? ORDER BY id DESC', [u.id]),
       db.get('SELECT * FROM kyc_submissions WHERE user_id=?', [u.id]),
       db.all('SELECT r.*, i.ref AS investment_ref FROM redemptions r JOIN investments i ON i.id=r.investment_id WHERE r.user_id=? ORDER BY r.id DESC', [u.id]),
+      db.all('SELECT id, currency, network, address, updated_at FROM payout_wallets WHERE user_id=? ORDER BY currency, network', [u.id]),
     ]);
     return {
       investor: A.publicUser(u), investments: invs.map(serializeInvestment), payments: pays.map(serializePayment), documents: docs,
-      tickets, redemptions: reds, kyc: kyc ? { status: kyc.status, personal: parseJSON(kyc.personal, {}), submitted_at: kyc.submitted_at, admin_note: kyc.admin_note } : null,
+      tickets, redemptions: reds, wallets, kyc: kyc ? { status: kyc.status, personal: parseJSON(kyc.personal, {}), submitted_at: kyc.submitted_at, admin_note: kyc.admin_note } : null,
     };
   });
 
@@ -99,7 +100,7 @@ function register(r) {
     if (b.status === 'suspended') await db.run('UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL', [now(), u.id]);
     await S.audit(ctx, `investor.${b.status === 'active' ? 'activate' : 'suspend'}`, 'user', u.id, { status: u.status }, { status: b.status, reason: b.reason });
     await S.sendMail(u.email, b.status === 'active' ? 'Your account is active' : 'Your account has been suspended',
-      `Hi ${u.first_name},\n\n${b.status === 'active' ? 'Your EstateInvest account has been reactivated.' : `Your EstateInvest account has been suspended. Reason: ${b.reason}\n\nContact support if you have questions.`}`);
+      `Hi ${u.first_name},\n\n${b.status === 'active' ? 'Your SapronLife Financial Investment account has been reactivated.' : `Your SapronLife Financial Investment account has been suspended. Reason: ${b.reason}\n\nContact support if you have questions.`}`);
     return { ok: true };
   });
 
@@ -287,7 +288,7 @@ function register(r) {
     });
     const p = await db.get('SELECT * FROM payments WHERE id=?', [Number(ctx.params.id) || 0]);
     if (!p) throw NotFound('Payment');
-    if (p.kind !== 'deposit') throw new HttpError(409, 'Redemption payouts are managed from Redemptions.');
+    if (p.kind !== 'deposit') throw new HttpError(409, 'Withdrawal payouts are managed from Withdrawals.');
     if (b.decision === 'confirm') await E.confirmPayment(p, { actor: ctx.user, txHash: b.tx_hash, confirmations: b.confirmations, note: b.note, ctx });
     else {
       if (!b.note) throw new HttpError(422, 'Check the highlighted fields.', { note: 'Explain why the payment is rejected.' });
@@ -314,7 +315,7 @@ function register(r) {
       amount_crypto: { type: 'number', min: 0 },
     });
     const red = await db.get('SELECT * FROM redemptions WHERE id=?', [Number(ctx.params.id) || 0]);
-    if (!red) throw NotFound('Redemption');
+    if (!red) throw NotFound('Withdrawal');
     const flow = { requested: ['under_review', 'approved', 'rejected'], under_review: ['approved', 'rejected'], approved: ['paid', 'rejected'], rejected: [], paid: [] };
     if (!flow[red.status].includes(b.decision)) throw new HttpError(409, `A ${red.status.replace('_', ' ')} request cannot be marked ${b.decision.replace('_', ' ')}.`);
     if (b.decision === 'rejected' && !b.note) throw new HttpError(422, 'Check the highlighted fields.', { note: 'Explain why the request is rejected.' });
@@ -331,16 +332,16 @@ function register(r) {
         });
         await S.assignRef(h, 'payments', 'TX', payId, 900);
         const inv = await h.get('SELECT * FROM investments WHERE id=?', [red.investment_id]);
-        if (inv.status === 'matured') await E.transition(h, inv, 'redeemed', { actor: ctx.user, reason: `Redemption ${red.ref} paid` });
-        else if (['active', 'maturing'].includes(inv.status)) await E.transition(h, inv, 'redeemed', { actor: ctx.user, reason: `Early redemption ${red.ref} paid`, force: true });
+        if (inv.status === 'matured') await E.transition(h, inv, 'redeemed', { actor: ctx.user, reason: `Withdrawal ${red.ref} paid` });
+        else if (['active', 'maturing'].includes(inv.status)) await E.transition(h, inv, 'redeemed', { actor: ctx.user, reason: `Early withdrawal ${red.ref} paid`, force: true });
       }
     });
     await S.audit(ctx, `redemption.${b.decision}`, 'redemption', red.id, { status: red.status }, { status: b.decision, note: b.note, tx_hash: b.tx_hash });
     const msg = {
-      under_review: 'Your redemption request is under review.', approved: 'Your redemption request was approved. We will send the payout shortly.',
-      rejected: `Your redemption request was not approved. ${b.note || ''}`, paid: `Your redemption payout was sent. Transaction hash: ${b.tx_hash}`,
+      under_review: 'Your withdrawal request is under review.', approved: 'Your withdrawal request was approved. We will send the payout shortly.',
+      rejected: `Your withdrawal request was not approved. ${b.note || ''}`, paid: `Your withdrawal payout was sent. Transaction hash: ${b.tx_hash}`,
     }[b.decision];
-    await S.notify(red.user_id, { type: 'redemption', title: `Redemption ${red.ref} update`, body: msg, link: '/app/redemptions' });
+    await S.notify(red.user_id, { type: 'redemption', title: `Withdrawal ${red.ref} update`, body: msg, link: '/app/withdrawals' });
     return { ok: true };
   });
 
@@ -510,7 +511,7 @@ function register(r) {
     await insert(db, 'ticket_messages', { ticket_id: t.id, author_id: ctx.user.id, author_type: 'admin', body: b.message, created_at: now() });
     await db.run("UPDATE tickets SET status='pending', updated_at=? WHERE id=?", [now(), t.id]);
     if (t.user_id) await S.notify(t.user_id, { type: 'support', title: `Reply to ${t.ref}`, body: b.message.slice(0, 300), link: `/app/support/${t.id}` });
-    else await S.sendMail(t.email, `Re: ${t.subject} (${t.ref})`, `Hi ${t.name},\n\n${b.message}\n\nEstateInvest Support`);
+    else await S.sendMail(t.email, `Re: ${t.subject} (${t.ref})`, `Hi ${t.name},\n\n${b.message}\n\nSapronLife Financial Investment Support`);
     await S.audit(ctx, 'ticket.reply', 'ticket', t.id);
     return { ok: true };
   });
@@ -636,7 +637,7 @@ function register(r) {
     const rows = await db.all(def.sql, range);
     await S.audit(ctx, 'report.export', 'report', ctx.params.type, null, { rows: rows.length, from: ctx.query.from, to: ctx.query.to });
     if (ctx.query.format === 'json') return { rows: rows.length, preview: rows.slice(0, 10).map((x) => Object.fromEntries(def.cols.map((c) => [c.label, typeof c.get === 'function' ? c.get(x) : x[c.key]]))) };
-    return new Raw(S.toCSV(rows, def.cols), 'text/csv; charset=utf-8', { 'Content-Disposition': `attachment; filename="${ctx.params.type}-report-${new Date().toISOString().slice(0, 10)}.csv"` });
+    return new Raw(S.toCSV(rows, def.cols), 'text/csv; charset=utf-8', { 'Content-Disposition': `attachment; filename="${ctx.params.type === 'redemptions' ? 'withdrawals' : ctx.params.type}-report-${new Date().toISOString().slice(0, 10)}.csv"` });
   });
 
   /* -------------------------------------------------------------- audit logs */

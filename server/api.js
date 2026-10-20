@@ -5,6 +5,7 @@ const { db } = require('./db');
 const { loadSession } = require('./lib/auth');
 const { seed } = require('./db/seed');
 const { ensurePartnershipPlans } = require('./db/plans');
+const { runMigrations } = require('./db/migrations');
 
 const router = new Router();
 for (const moduleName of ['public', 'auth', 'investor', 'admin', 'webhooks', 'translation', 'cron']) {
@@ -29,7 +30,7 @@ let initialization;
 
 function initialize() {
   if (!initialization) {
-    initialization = db.init().then(() => process.env.VERCEL ? undefined : seed()).then(() => ensurePartnershipPlans()).catch((error) => {
+    initialization = db.init().then(() => process.env.VERCEL ? undefined : seed()).then(() => ensurePartnershipPlans()).then(() => runMigrations()).catch((error) => {
       initialization = null;
       throw error;
     });

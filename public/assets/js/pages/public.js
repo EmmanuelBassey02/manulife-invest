@@ -24,17 +24,21 @@ function returnText(r) {
   return 'Pending legal approval';
 }
 
-export function plansTable(plans, { action } = {}) {
+export function plansTable(plans, { action, selectedId = null } = {}) {
   if (!plans.length) return empty('No plans available', 'Investment plans will appear here once they are published.');
   const row = (p, i) => {
     const e = planEarnings(p);
-    return `<tr><td><div class="plan-cell"><span class="plan-cell__no">${i + 1}</span><span class="plan-cell__ico">${icon(PLAN_ICONS[i % PLAN_ICONS.length])}</span><span class="plan-cell__txt"><strong>${esc(p.name)}</strong>${p.description ? `<small>${esc(p.description)}</small>` : ''}${p.property_name ? `<small>${esc(p.property_name)} only</small>` : ''}</span></div></td>
-      <td data-no-translate>${moneyAuto(p.min_amount)}</td><td data-no-translate>${e ? moneyAuto(e.weekly) : '—'}</td><td${e ? ' data-no-translate' : ''}>${e ? pctText(e.rate) : esc(returnText(p.returns))}</td><td data-no-translate>${e ? moneyAuto(e.monthly) : '—'}</td><td data-no-translate>${e ? moneyAuto(e.annual) : '—'}</td>${action ? `<td>${action(p)}</td>` : ''}</tr>`;
+    const selected = selectedId != null && p.id === selectedId;
+    return `<tr${selected ? ' class="is-selected"' : ''} data-plan-row="${p.id}"><td><div class="plan-cell"><span class="plan-cell__no">${i + 1}</span><span class="plan-cell__ico">${icon(PLAN_ICONS[i % PLAN_ICONS.length])}</span><span class="plan-cell__txt"><strong>${esc(p.name)}</strong>${p.description ? `<small>${esc(p.description)}</small>` : ''}${p.property_name ? `<small>${esc(p.property_name)} only</small>` : ''}</span></div></td>
+      <td data-no-translate>${moneyAuto(p.min_amount)}</td><td data-no-translate>${e ? moneyAuto(e.weekly) : '—'}</td><td${e ? ' data-no-translate' : ''}>${e ? pctText(e.rate) : esc(returnText(p.returns))}</td><td data-no-translate>${e ? moneyAuto(e.monthly) : '—'}</td><td data-no-translate>${e ? moneyAuto(e.annual) : '—'}</td>${action ? `<td class="plan-action">${action(p, selected)}</td>` : ''}</tr>`;
   };
   return `<div class="table-wrap"><table class="table table--plans table--partner"><thead><tr><th>Partnership Plan</th><th>Minimum Investment (USD)</th><th>Weekly Profit (Est.)</th><th>Weekly Return (Est. %)</th><th>Monthly Profit (Est.)<small>(4 weeks)</small></th><th>Annual Profit (Est.)<small>(52 weeks)</small></th>${action ? '<th><span class="sr-only">Action</span></th>' : ''}</tr></thead><tbody>
     ${plans.map(row).join('')}
   </tbody></table></div>`;
 }
+
+/** Note shown with every copy of the plans table (website and investor app). */
+export const plansNote = () => `<div class="callout">${icon('info')}<div><strong>About returns</strong><p>Profit and return figures are estimates based on each plan's minimum investment and are not guaranteed. Monthly profit covers 4 weeks and annual profit covers 52 weeks. Your maturity date is calculated from the day your payment is confirmed.</p></div></div>`;
 
 const pageHead = (title, sub, crumbs = '') => `<section class="page-head"><div class="wrap">${crumbs}<h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div></section>`;
 
@@ -267,7 +271,7 @@ export async function plans() {
     html: `${pageHead('Investment plans', 'Compare partnership plans by minimum investment and estimated returns.')}
     <section class="section section--tight"><div class="wrap">
       ${plansTable(items, { action: (p) => `<a class="btn btn--gold btn--sm" href="${state.user ? `/app/invest?plan=${p.id}` : `/register?next=${encodeURIComponent(`/app/invest?plan=${p.id}`)}`}">Choose</a>` })}
-      <div class="callout">${icon('info')}<div><strong>About returns</strong><p>Profit and return figures are estimates based on each plan's minimum investment and are not guaranteed. Monthly profit covers 4 weeks and annual profit covers 52 weeks. Your maturity date is calculated from the day your payment is confirmed.</p></div></div>
+      ${plansNote()}
     </div></section>`,
   };
 }
@@ -296,7 +300,7 @@ export async function about() {
   const s = site().site || {};
   return {
     title: 'About us',
-    html: `${pageHead('About EstateInvest', c.intro || '')}
+    html: `${pageHead(`About ${site().site?.brand || 'SapronLife Financial Investment'}`, c.intro || '')}
     <section class="section section--tight"><div class="wrap">
       <div class="about-grid">
         <div class="prose"><h2>Our story</h2><p>${esc(c.history || '')}</p><h2>Our mission</h2><p>${esc(c.mission || '')}</p><h2>How we work</h2><p>${esc(c.model || '')}</p></div>

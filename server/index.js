@@ -10,6 +10,7 @@ const { loadSession } = require('./lib/auth');
 const engine = require('./lib/engine');
 const { seed } = require('./db/seed');
 const { ensurePartnershipPlans } = require('./db/plans');
+const { runMigrations } = require('./db/migrations');
 
 const router = new Router();
 for (const m of ['public', 'auth', 'investor', 'admin', 'webhooks', 'translation']) require(`./routes/${m}`).register(router);
@@ -121,6 +122,7 @@ async function start() {
   await db.init();
   await seed();
   await ensurePartnershipPlans();
+  await runMigrations();
   const server = http.createServer((req, res) => {
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch { return send(res, 400, 'Bad request', 'text/plain'); }
@@ -130,7 +132,7 @@ async function start() {
   server.headersTimeout = 30000;
   server.requestTimeout = 60000;
   await new Promise((resolve) => server.listen(config.PORT, resolve));
-  console.log(`EstateInvest running at ${config.APP_URL} (${db.kind})`);
+  console.log(`SapronLife Financial Investment running at ${config.APP_URL} (${db.kind})`);
   const runTick = () => engine.tick().catch((e) => console.error('[scheduler]', e));
   runTick();
   setInterval(runTick, 60000).unref();

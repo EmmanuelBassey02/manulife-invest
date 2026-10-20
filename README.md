@@ -1,4 +1,4 @@
-# EstateInvest — Real Estate Investment Platform
+# SapronLife Financial Investment — Real Estate Investment Platform
 
 A complete, responsive web application built from the PRD: public website, investor portal and admin dashboard, with cryptocurrency-only payments (USDT, BTC, ETH, TON).
 
@@ -41,14 +41,14 @@ Home (hero, featured properties, plan comparison, how it works, trust points, te
 - Dashboard: total invested, active/completed, pending payments, next maturity, portfolio chart, allocation chart, recent activity
 - **Investment flow** matching the mock-up: Select plan → Enter amount → Choose crypto → Payment (amount, network, wallet address, copy button, **scannable QR code**, countdown) → Confirmation
 - Investment details: ID, property, plan, amount, currency, transaction hash, payment/start/maturity dates, status history, return terms, documents
-- Transactions, Documents (auto-generated **certificates and receipts**, printable to PDF), Redemption requests (password re-confirmation), Notifications, Support tickets, Account settings (profile, password, signed-in devices)
+- Transactions, Documents (auto-generated **certificates and receipts**, printable to PDF), Withdrawals (withdraw matured investments to a crypto wallet; investors can save a payout wallet per cryptocurrency; password re-confirmation), Notifications, Support tickets, Account settings (profile, password, signed-in devices)
 
 ### Admin dashboard
 Dashboard with live stats and activity chart · Investors (search/filter, profile, suspend/reactivate) · **KYC Reviews** (document viewer, per-document verification, approve / request info / reject) · Investments (filter, status changes with mandatory reason, manual entry) · Properties (create/edit, images, documents, publish) · Investment Plans · Payments (verify/reject crypto transactions) · Redemptions (review → approve → record payout) · Support · Documents (issue to an investor or all) · Website Content (CMS for every public page) · News · **Reports (CSV export, opens in Excel)** · **Audit Logs**.
 Super Admin adds: Administrators (roles & per-area permissions), Platform Settings (payment wallets, rates, rules), Email Log.
 
 ### Investment engine
-- Lifecycle: Pending → Awaiting payment → Payment confirmed → Active → Maturing → Matured → Completed/Redeemed, plus Cancelled, Suspended, Under Review, Disputed. Invalid transitions are blocked; every change is recorded with who, when and why.
+- Lifecycle: Pending → Awaiting payment → Payment confirmed → Active → Maturing → Matured → Completed/Withdrawn, plus Cancelled, Suspended, Under Review, Disputed. Invalid transitions are blocked; every change is recorded with who, when and why.
 - Maturity calculated from the payment confirmation date using calendar months.
 - **Returns are never invented.** A plan shows a return figure only after an admin enters the client-supplied rate *and* ticks "approved by legal counsel". Until then investors see "Return structure pending legal approval". The terms are snapshotted onto each investment so later edits don't change existing ones.
 - A scheduler (every minute) expires unpaid invoices, moves investments to Maturing/Matured and notifies investors.
@@ -79,7 +79,7 @@ The frontend runs on Next.js 16. The existing Node API router and business logic
 Use the default Next.js build (`npm run build`). Configure these environment variables in Vercel Project Settings:
 
 - `DATABASE_URL`: managed PostgreSQL connection string.
-- `BLOB_READ_WRITE_TOKEN`: connect a private Vercel Blob store to the project.
+- `BLOB_READ_WRITE_TOKEN`: connect a private Vercel Blob store to the project. Files are uploaded to the app's own API and stored in Blob by the server; the browser never uploads to Blob directly. Photos are resized in the browser so every upload stays under Vercel's 4.5 MB request limit; PDFs are limited to 3 MB.
 - `CRON_SECRET`: long random secret for the protected `/api/cron/tick` endpoint.
 - Set production `APP_URL`, `NODE_ENV`, and mail settings; set a public `LIBRETRANSLATE_URL` if translations are enabled.
 
@@ -146,3 +146,13 @@ scripts/              reset-db, export-pg-schema
 ## Phase 2 (from the PRD, not included)
 
 Native mobile apps, advanced biometric KYC, referrals, multilingual support, advanced analytics, investor messaging, tax documents, property marketplace, additional blockchains, advanced compliance monitoring.
+
+## Changes in this version (SapronLife)
+
+- Company name and logo changed to **SapronLife Financial Investment**. On first start, existing website content in the database (company name, hero text, "Redemption" wording) is updated once; later edits made in Website Content are never overwritten.
+- "Redemption" is now **"Withdrawal"** everywhere users see it. Old links (`/app/redemptions`, `/admin/redemptions`) redirect to `/app/withdrawals` and `/admin/withdrawals`. The database table, API paths and admin permission key keep the internal name `redemptions`, so existing data and admin roles keep working. New withdrawal references start with `WDR-`; earlier ones keep `RED-`.
+- **Withdrawals page**: a Withdraw button for every matured investment. The payout defaults to the cryptocurrency and network the investor paid with, and to their saved wallet for it. Investors can save one payout wallet per cryptocurrency and network (password required; they're emailed when it changes). Addresses are checked against the network format (TRC20, ERC20, BTC, TON) before a request is accepted.
+- **KYC uploads fixed**: uploads no longer go from the browser straight to Vercel Blob (the site's security policy blocked that request and the Blob SDK retried it for many minutes, so the spinner never stopped). Every upload now has a time limit and a clear error message.
+- **Investment plans**: the investor app has an Investment Plans page, and the first step of the invest flow shows the same plan table as the website. Choosing a plan on the website opens the invest flow with that plan selected.
+- **Phones**: tables become stacked cards, dialogs keep their main button visible, the top bar no longer squeezes the search box, and step indicators show "Step X of Y".
+- After deploying, rename the Vercel project and GitHub repository (currently `manulife-invest`) in their own settings; this code can't change those.

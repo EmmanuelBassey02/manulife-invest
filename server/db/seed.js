@@ -15,8 +15,8 @@ const LEGAL_NOTE = 'Template placeholder. Replace this text with the version app
 
 const CMS = {
   site: {
-    brand: 'EstateInvest', tagline: 'Real estate investment platform',
-    email: 'invest@estateinvest.example', phone: '+234 800 000 0000', whatsapp: '2348000000000',
+    brand: 'SapronLife Financial Investment', tagline: 'Real estate investment platform',
+    email: 'invest@sapronlife.example', phone: '+234 800 000 0000', whatsapp: '2348000000000',
     address: '12 Admiralty Way, Lekki Phase 1, Lagos, Nigeria', hours: 'Monday to Friday, 9:00–17:00 WAT',
     registration: 'Company registration and licensing details will appear here once supplied.',
   },
@@ -27,11 +27,11 @@ const CMS = {
       { value: '$250M+', label: 'Assets under management' }, { value: '5,000+', label: 'Investors worldwide' },
       { value: '20+', label: 'Properties' }, { value: '10+', label: 'Countries' },
     ],
-    stats_note: 'Figures are supplied by EstateInvest and must be verified before publication.',
+    stats_note: 'Figures are supplied by SapronLife and must be verified before publication.',
   },
   about: {
-    intro: 'EstateInvest connects investors with professionally managed residential, commercial and hospitality developments across West Africa.',
-    history: 'Founded by a team of developers, surveyors and fund managers, EstateInvest grew out of a simple observation: quality property projects in fast-growing cities often struggle to reach investors who want transparent, well-documented opportunities.',
+    intro: 'SapronLife connects investors with professionally managed residential, commercial and hospitality developments across West Africa.',
+    history: 'Founded by a team of developers, surveyors and fund managers, SapronLife grew out of a simple observation: quality property projects in fast-growing cities often struggle to reach investors who want transparent, well-documented opportunities.',
     mission: 'To make well-structured real estate opportunities accessible, with clear terms, honest risk disclosure and reporting investors can rely on.',
     model: 'We source and assess projects, structure investment plans with fixed durations, and report on progress through the investor dashboard. Plans, returns and terms are set out in documents approved by our legal advisers before any opportunity is opened to investors.',
     licensing: 'Registration and licensing information will be published here once supplied by the company.',
@@ -48,7 +48,7 @@ const CMS = {
       { title: 'Verify your identity', body: 'Upload a government ID, proof of address and a selfie. Our compliance team reviews them, usually within two business days.' },
       { title: 'Choose a property and plan', body: NEW_STEP_BODY },
       { title: 'Pay with cryptocurrency', body: 'Send USDT, BTC, ETH or TON to the address shown. We confirm the payment on the blockchain and activate your investment.' },
-      { title: 'Track to maturity', body: 'Follow your investment, documents and transactions in your dashboard. At maturity, request redemption to your wallet.' },
+      { title: 'Track to maturity', body: 'Follow your investment, documents and transactions in your dashboard. At maturity, request a withdrawal to your wallet.' },
     ],
   },
   faqs: [
@@ -57,7 +57,7 @@ const CMS = {
     { q: 'How long does payment confirmation take?', a: 'Usually minutes after the required number of blockchain confirmations. Your dashboard updates once your payment is verified.', category: 'Payments' },
     { q: 'What happens if I send the wrong amount?', a: 'Underpayments are held for manual review. Contact support with your transaction hash and our team will help.', category: 'Payments' },
     { q: 'What returns can I expect?', a: 'Any return structure is set out in the plan terms approved by our legal advisers. Returns are not guaranteed and you could lose some or all of your investment.', category: 'Investing' },
-    { q: 'Can I withdraw early?', a: 'Redemption is available at maturity. Early redemption is only possible where the plan terms allow it and is subject to review.', category: 'Investing' },
+    { q: 'Can I withdraw early?', a: 'Withdrawal is available at maturity. Early withdrawal is only possible where the plan terms allow it and is subject to review.', category: 'Investing' },
     { q: 'How is my data protected?', a: 'Documents are stored privately and only reviewed by our compliance team. Read our Privacy Policy for details.', category: 'Security' },
     { q: 'How do I contact support?', a: 'Use the contact form, open a ticket from your dashboard, email us, or message us on WhatsApp.', category: 'Support' },
   ],
@@ -70,12 +70,12 @@ const CMS = {
     footer: 'Investing in real estate involves risk, including the loss of capital. Past performance is not a reliable indicator of future results. Cryptocurrency payments are irreversible and their value can change quickly. Read the Risk Disclosure before investing.',
   },
   legal: {
-    terms: { title: 'Terms & Conditions', body: `${LEGAL_NOTE}\n\n## 1. About these terms\nThese terms govern your use of the EstateInvest website and investor portal.\n\n## 2. Eligibility\nYou must be at least 18 and complete identity verification to invest.\n\n## 3. Your account\nKeep your password secure. You are responsible for activity on your account.\n\n## 4. Limitation of liability\nTo be supplied by counsel.` },
+    terms: { title: 'Terms & Conditions', body: `${LEGAL_NOTE}\n\n## 1. About these terms\nThese terms govern your use of the SapronLife website and investor portal.\n\n## 2. Eligibility\nYou must be at least 18 and complete identity verification to invest.\n\n## 3. Your account\nKeep your password secure. You are responsible for activity on your account.\n\n## 4. Limitation of liability\nTo be supplied by counsel.` },
     privacy: { title: 'Privacy Policy', body: `${LEGAL_NOTE}\n\n## What we collect\nIdentity, contact, verification and transaction information.\n\n## Why we collect it\nTo verify your identity, meet anti-money-laundering obligations and manage your investments.\n\n## Your rights\nYou can request access to or correction of your data by contacting us.` },
     investment_terms: { title: 'Investment Terms', body: `${LEGAL_NOTE}\n\n## Plans\nEach plan has a fixed duration, minimum and maximum amount, and terms set out on the plan page.\n\n## Returns\nReturn structures are only shown once approved. Returns are not guaranteed.\n\n## Maturity\nYour maturity date is calculated from the date your payment is confirmed.` },
     risk: { title: 'Risk Disclosure', body: `${LEGAL_NOTE}\n\n## Capital at risk\nYou could lose some or all of the money you invest.\n\n## Property risks\nConstruction delays, cost overruns, market downturns, regulatory changes and tenant default can all affect outcomes.\n\n## Liquidity\nYou may not be able to withdraw before maturity.\n\n## Cryptocurrency risks\nCrypto transfers are irreversible. Prices are volatile, and sending to the wrong address or network can result in permanent loss.` },
     kyc_aml: { title: 'KYC / AML Policy', body: `${LEGAL_NOTE}\n\n## Verification\nWe verify every investor's identity, address and source of funds before accepting investments.\n\n## Monitoring\nWe monitor transactions and may request more information or suspend accounts where required by law.` },
-    redemption: { title: 'Redemption & Refund Policy', body: `${LEGAL_NOTE}\n\n## At maturity\nYou can request redemption to a wallet in your name once your investment matures.\n\n## Review\nRequests are reviewed and may require additional security checks.\n\n## Refunds\nPayments for cancelled investments are refunded in line with this policy, less network fees.` },
+    redemption: { title: 'Withdrawal & Refund Policy', body: `${LEGAL_NOTE}\n\n## At maturity\nYou can request a withdrawal to a wallet in your name once your investment matures.\n\n## Review\nRequests are reviewed and may require additional security checks.\n\n## Refunds\nPayments for cancelled investments are refunded in line with this policy, less network fees.` },
     investor_agreement: { title: 'Investor Agreement', body: `${LEGAL_NOTE}\n\nThe investor agreement will be published here.` },
     crypto: { title: 'Crypto Payment Disclosure', body: `${LEGAL_NOTE}\n\n## Supported assets\nOnly the cryptocurrencies and networks shown at checkout are supported.\n\n## Exchange rates\nThe USD value of your payment is fixed at the rate shown when you start the investment.\n\n## Wrong network or address\nFunds sent on an unsupported network or to an address not shown in your dashboard may be lost permanently.` },
   },
@@ -85,12 +85,12 @@ const PROPERTIES = [
   { name: 'Lagos Waterfront Residences', type: 'residential', city: 'Lagos', country: 'Nigeria', dev_status: 'under_development', featured: 1, target: 12000000, seed: 11,
     summary: 'A premium residential development offering modern living spaces in a prime waterfront location.',
     description: 'Lagos Waterfront Residences is a premium residential development designed to offer modern living spaces with world-class amenities in a strategic waterfront location.\n\nThe development comprises 84 apartments and 12 penthouses across three terraced blocks, with a marina promenade, residents’ club, infinity pool and 24-hour security.',
-    details: { 'Property type': 'Residential', 'Development status': 'Under development', Units: '96 apartments', 'Site area': '2.4 hectares', 'Expected completion': 'Q4 2027', Developer: 'EstateInvest Developments Ltd' },
+    details: { 'Property type': 'Residential', 'Development status': 'Under development', Units: '96 apartments', 'Site area': '2.4 hectares', 'Expected completion': 'Q4 2027', Developer: 'SapronLife Developments Ltd' },
     highlights: ['Direct lagoon frontage with private marina', 'Infinity pool and residents’ club', 'Phase 1 structural works complete'] },
   { name: 'Eko Business Tower', type: 'commercial', city: 'Lagos', country: 'Nigeria', dev_status: 'under_development', featured: 1, target: 25000000, seed: 27,
     summary: 'A 22-storey Grade A office tower in the heart of Eko Atlantic’s business district.',
     description: 'Eko Business Tower offers 38,000 m² of Grade A office space with floor-to-ceiling glazing, backup power and smart building systems.\n\nPre-letting discussions are under way with financial services and technology tenants.',
-    details: { 'Property type': 'Commercial', 'Development status': 'Under development', Floors: '22', 'Lettable area': '38,000 m²', 'Expected completion': 'Q2 2028', Developer: 'EstateInvest Developments Ltd' },
+    details: { 'Property type': 'Commercial', 'Development status': 'Under development', Floors: '22', 'Lettable area': '38,000 m²', 'Expected completion': 'Q2 2028', Developer: 'SapronLife Developments Ltd' },
     highlights: ['Grade A specification', 'Located in Eko Atlantic City', 'LEED certification targeted'] },
   { name: 'Abuja Green City', type: 'mixed_use', city: 'Abuja', country: 'Nigeria', dev_status: 'planning', featured: 1, target: 18000000, seed: 43,
     summary: 'A walkable mixed-use neighbourhood combining homes, offices and retail around a central park.',
@@ -298,7 +298,7 @@ async function seed() {
       user_id: matured.user_id, investment_id: matured.id, amount_usd: matured.amount_usd, currency: 'USDT', network: 'TRC20',
       destination_wallet: 'TDemoInvestorWalletAddressForPayout01', status: 'requested', created_at: addDays(t0, -1), updated_at: addDays(t0, -1),
     });
-    await db.run('UPDATE redemptions SET ref=? WHERE id=?', [`RED-${3000 + rid}`, rid]);
+    await db.run('UPDATE redemptions SET ref=? WHERE id=?', [`WDR-${3000 + rid}`, rid]);
   }
 
   // Notifications and a support ticket for John.
@@ -310,7 +310,7 @@ async function seed() {
   const tid = await insert(db, 'tickets', { user_id: john.id, name: 'John Doe', email: 'john@example.com', subject: 'Question about maturity payout', category: 'redemption', status: 'pending', created_at: addDays(t0, -3), updated_at: addDays(t0, -2) });
   await db.run('UPDATE tickets SET ref=? WHERE id=?', [`SUP-${5000 + tid}`, tid]);
   await insert(db, 'ticket_messages', { ticket_id: tid, author_id: john.id, author_type: 'investor', body: 'When my investment matures, can I choose which network the payout is sent on?', created_at: addDays(t0, -3) });
-  await insert(db, 'ticket_messages', { ticket_id: tid, author_id: 1, author_type: 'admin', body: 'Yes — when you request redemption you can choose any supported currency and network. We send to the wallet you specify after security checks.', created_at: addDays(t0, -2) });
+  await insert(db, 'ticket_messages', { ticket_id: tid, author_id: 1, author_type: 'admin', body: 'Yes — when you request a withdrawal you can choose any supported currency and network. We send to the wallet you specify after security checks.', created_at: addDays(t0, -2) });
 
   await insert(db, 'posts', {
     slug: 'lagos-waterfront-phase-one-complete', title: 'Lagos Waterfront Residences: phase 1 structure complete',
