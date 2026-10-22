@@ -276,7 +276,8 @@ export async function render() {
   if (view.mount) {
     try { await view.mount(main, ctx); } catch (e) { console.error(e); toast(e.message || 'Something went wrong.', 'bad'); }
   }
-  applyLanguage(root);
+  // The whole page is translated, including dialogs and messages added outside #app.
+  applyLanguage(document.body);
   if (!location.hash) window.scrollTo(0, 0);
   if (view.live) {
     liveTimer = setInterval(() => {
@@ -385,8 +386,7 @@ document.addEventListener('click', (e) => {
     const next = option.dataset.languageOption;
     const selected = LANGUAGES.find(([code]) => code === next);
     if (!selected) return;
-    const root = document.getElementById('app');
-    resetTranslations(root);
+    resetTranslations(document.body);
     try { localStorage.setItem('ei_language', next); } catch { /* ignore */ }
     document.querySelectorAll('[data-language-picker]').forEach((picker) => {
       const trigger = picker.querySelector('[data-language-toggle]');
@@ -399,7 +399,8 @@ document.addEventListener('click', (e) => {
       picker.querySelector('.language-picker__menu').hidden = true;
       picker.querySelectorAll('[data-language-option]').forEach((item) => item.setAttribute('aria-selected', String(item.dataset.languageOption === next)));
     });
-    applyLanguage(root);
+    // Redraw so dates and numbers are formatted for the new language, then translate.
+    render();
     return;
   }
   const toggle = e.target.closest('[data-language-toggle]');
@@ -426,7 +427,6 @@ document.addEventListener('keydown', (e) => {
   document.querySelectorAll('[data-language-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
 });
 
-window.addEventListener('translationerror', (e) => toast(e.detail?.message || 'Translation is unavailable. Check translation service configuration.', 'bad'));
 
 // Stop trackpad/mouse wheel from changing a focused number field.
 document.addEventListener('wheel', (e) => {

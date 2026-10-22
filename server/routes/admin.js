@@ -381,7 +381,7 @@ function register(r) {
     const b = check(ctx.body, propSpec(false));
     let slug = slugify(b.name);
     if (await db.get('SELECT id FROM properties WHERE slug=?', [slug])) slug = `${slug}-${Date.now().toString(36)}`;
-    const id = await insert(db, 'properties', { ...propRow(b), slug, dev_status: b.dev_status || 'planning', status: b.status || 'draft', art_seed: b.art_seed || (Math.floor(Math.random() * 900) + 1), created_at: now(), updated_at: now() });
+    const id = await insert(db, 'properties', { ...propRow(b), slug, dev_status: b.dev_status || 'planning', status: b.status || 'published', art_seed: b.art_seed || (Math.floor(Math.random() * 900) + 1), created_at: now(), updated_at: now() });
     await S.audit(ctx, 'property.create', 'property', id, null, b);
     return { ok: true, id };
   });

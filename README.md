@@ -81,7 +81,8 @@ Use the default Next.js build (`npm run build`). Configure these environment var
 - `DATABASE_URL`: managed PostgreSQL connection string.
 - `BLOB_READ_WRITE_TOKEN`: connect a private Vercel Blob store to the project. Files are uploaded to the app's own API and stored in Blob by the server; the browser never uploads to Blob directly. Photos are resized in the browser so every upload stays under Vercel's 4.5 MB request limit; PDFs are limited to 3 MB.
 - `CRON_SECRET`: long random secret for the protected `/api/cron/tick` endpoint.
-- Set production `APP_URL`, `NODE_ENV`, and mail settings; set a public `LIBRETRANSLATE_URL` if translations are enabled.
+- Set production `APP_URL`, `NODE_ENV`, and mail settings.
+- Optional: set `DEEPL_API_KEY` so that content an admin adds later (new properties, news) is translated automatically. See "Languages" below.
 
 Vercel Hobby cron jobs run at most daily. To preserve one-minute payment expiry and investment maturity checks, configure an external scheduler to request `GET https://your-domain/api/cron/tick` every minute with `Authorization: Bearer <CRON_SECRET>`.
 
@@ -156,3 +157,18 @@ Native mobile apps, advanced biometric KYC, referrals, multilingual support, adv
 - **Investment plans**: the investor app has an Investment Plans page, and the first step of the invest flow shows the same plan table as the website. Choosing a plan on the website opens the invest flow with that plan selected.
 - **Phones**: tables become stacked cards, dialogs keep their main button visible, the top bar no longer squeezes the search box, and step indicators show "Step X of Y".
 - After deploying, rename the Vercel project and GitHub repository (currently `manulife-invest`) in their own settings; this code can't change those.
+
+## Languages
+
+The language menu offers English, French, Spanish, Portuguese (Brazil) and German. Every built-in text on the
+website and investor dashboard (pages, buttons, forms, messages, notifications, dates) is translated in
+`public/assets/i18n/{fr,es,pt,de}.json`. Keys are the English text; keys with `{0}`, `{1}` are patterns for
+text that contains names, amounts or dates (for example `Welcome back, {0}.`).
+
+Text that administrators add later (property descriptions, news articles, website copy) is not in those files.
+Set `DEEPL_API_KEY` (or `LIBRETRANSLATE_URL`) to translate it automatically: each sentence is translated once and
+stored in the `translations` table. Only text that actually appears in your content is sent to the service.
+Property names and the company name are never translated. Without a key, that added text stays in English.
+
+When you add or change built-in text in the code, add the same English text to each catalog file.
+

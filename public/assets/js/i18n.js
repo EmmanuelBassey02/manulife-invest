@@ -1,8 +1,11 @@
 import { api } from './api.js';
 
 export const LANGUAGES = [
-  ['en', 'English', 'GB'], ['fr', 'French', 'FR'], ['es', 'Spanish', 'ES'], ['pt', 'Portuguese', 'PT'], ['de', 'German', 'DE'],
+  ['en', 'English', 'GB'], ['fr', 'Français', 'FR'], ['es', 'Español', 'ES'], ['pt', 'Português', 'PT'], ['de', 'Deutsch', 'DE'],
 ];
+
+/** BCP 47 locale used for dates in each language. */
+export const LOCALES = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES', pt: 'pt-BR', de: 'de-DE' };
 
 const flag = (country) => String.fromCodePoint(...country.split('').map((letter) => 127397 + letter.charCodeAt(0)));
 
@@ -26,17 +29,30 @@ export function languagePicker() {
 let observer;
 let pending = new Set();
 let scheduled = false;
-let failedLanguage = '';
 let languageRun = 0;
 let queuedText = new WeakSet();
 let queuedAttributes = new WeakMap();
 const originalText = new WeakMap();
 const originalAttributes = new WeakMap();
+let written = new WeakMap(); // node -> Map(slot -> text we wrote), so translated text isn't treated as new text
 const translationCache = new Map();
 const catalogLoads = new Map();
-const staticCatalogs = new Set();
+const patterns = new Map(); // lang -> [{ re, translation, literal }]
+const serverOff = new Set(); // languages the server cannot translate further this session
 const BATCH_SIZE = 20;
-const CONCURRENT_BATCHES = 8;
+const CONCURRENT_BATCHES = 4;
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/* Catalog keys may contain placeholders such as "{0} unread"; they become patterns. */
+function addPattern(lang, key, translation) {
+  const parts = key.split(/\{\d\}/);
+  const order = [...key.matchAll(/\{(\d)\}/g)].map((m) => Number(m[1]));
+  const re = new RegExp(`^${parts.map(escapeRe).join('([\\s\\S]+?)')}$`);
+  const list = patterns.get(lang) || [];
+  const literal = parts.join('').length;
+  list.push({ re, order, translation, literal, generic: literal <= 4 && /^\{\d\}/.test(key) && /\{\d\}$|\{\d\}\)$/.test(key) });
+  patterns.set(lang, list);
+}
 
 function loadCatalog(lang) {
   if (!catalogLoads.has(lang)) {
@@ -46,10 +62,11 @@ function loadCatalog(lang) {
         return response.json();
       })
       .then((catalog) => {
-        staticCatalogs.add(lang);
         for (const [text, translated] of Object.entries(catalog)) {
-          translationCache.set(`${lang}\0${text}`, translated);
+          if (/\{\d\}/.test(text)) addPattern(lang, text, translated);
+          else translationCache.set(`${lang}\0${text}`, translated);
         }
+        patterns.get(lang)?.sort((a, b) => b.literal - a.literal);
       })
       .catch((error) => {
         catalogLoads.delete(lang);
@@ -60,11 +77,47 @@ function loadCatalog(lang) {
   return catalogLoads.get(lang);
 }
 
+/** Exact match first, then a pattern such as "{0} unread". Values inside a pattern are translated when known. */
+function lookup(lang, text, depth = 0) {
+  const exact = translationCache.get(`${lang}\0${text}`);
+  if (exact !== undefined) return exact;
+  if (depth > 2) return undefined;
+  for (const p of patterns.get(lang) || []) {
+    const m = text.match(p.re);
+    if (!m) continue;
+    let known = 0;
+    const values = m.slice(1).map((v) => { const t = lookup(lang, v.trim(), depth + 1); if (t !== undefined) known += 1; return t ?? v; });
+    // Separator-only patterns such as "{0} · {1}" apply only when part of the text is actually translated.
+    if (p.generic && !known) continue;
+    return p.translation.replace(/\{(\d)\}/g, (_, i) => values[p.order.indexOf(Number(i))] ?? '');
+  }
+  return undefined;
+}
+
+/** Codes, amounts, references, hashes, e-mail addresses and file names are left as they are. */
+function worthTranslating(text) {
+  if (!/[A-Za-zÀ-ÿ]{2}/.test(text)) return false;
+  if (!/\s/.test(text) && text.length >= 12) return false;
+  if (/^[A-Z0-9][A-Z0-9 ._\-:/()+…·,$%]*$/.test(text)) return false;
+  if (/^[\d.,\s]+[A-Z]{2,6}$/.test(text)) return false;
+  if (/^\S+@\S+\.\S+$/.test(text)) return false;
+  if (/^[\w.-]+\.(png|jpe?g|webp|pdf)$/i.test(text)) return false;
+  return true;
+}
+
+const wasWritten = (node, slot, value) => written.get(node)?.get(slot) === value;
+function remember(node, slot, value) {
+  let m = written.get(node);
+  if (!m) { m = new Map(); written.set(node, m); }
+  m.set(slot, value);
+}
+
 function addText(node) {
+  if (node && wasWritten(node, '#text', node.nodeValue)) return;
   if (!node || !node.nodeValue.trim() || queuedText.has(node) || node.parentElement?.closest('script,style,noscript,code,pre,textarea,[contenteditable="true"],[data-no-translate]')) return;
   queuedText.add(node);
   if (!originalText.has(node)) originalText.set(node, node.nodeValue);
-  pending.add({ node, read: () => node.nodeValue, write: (value) => { node.nodeValue = value; } });
+  pending.add({ node, read: () => node.nodeValue, write: (value) => { node.nodeValue = value; remember(node, '#text', value); } });
 }
 
 function addAttributes(element) {
@@ -76,10 +129,10 @@ function addAttributes(element) {
   if (!originals) { originals = new Map(); originalAttributes.set(element, originals); }
   for (const attr of attrs) {
     const original = element.getAttribute(attr);
-    if (!original?.trim() || queued.has(attr)) continue;
+    if (!original?.trim() || queued.has(attr) || wasWritten(element, attr, original)) continue;
     queued.add(attr);
     if (!originals.has(attr)) originals.set(attr, original);
-    pending.add({ node: element, read: () => element.getAttribute(attr), write: (value) => element.setAttribute(attr, value), original });
+    pending.add({ node: element, read: () => element.getAttribute(attr), write: (value) => { element.setAttribute(attr, value); remember(element, attr, value); }, original });
   }
 }
 
@@ -90,10 +143,12 @@ function collect(root) {
   elements.forEach(addAttributes);
 }
 
+/** Asks the server for text missing from the catalog (e.g. content added by an administrator). */
 async function translateBatch(lang, texts) {
-  const { translations } = await api.post('/api/public/translate', { target: lang, texts });
-  if (!Array.isArray(translations) || translations.length !== texts.length) throw new Error('Translation response was incomplete.');
-  return translations.map((value) => new DOMParser().parseFromString(value, 'text/html').body.textContent);
+  const res = await api.post('/api/public/translate', { target: lang, texts });
+  if (!Array.isArray(res?.translations) || res.translations.length !== texts.length) throw new Error('Translation response was incomplete.');
+  if (res.provider === false) serverOff.add(lang);
+  return res.translations.map((value) => new DOMParser().parseFromString(value, 'text/html').body.textContent);
 }
 
 function applyJob(job, original, translated) {
@@ -120,49 +175,35 @@ function schedule(root, lang, run = languageRun) {
       for (const job of jobs) {
         const original = job.original ?? job.read();
         const normalized = original.trim();
-        const key = `${lang}\0${normalized}`;
-        const cached = translationCache.get(key);
-        if (cached) {
-          applyJob(job, original, preserveWhitespace(original, cached));
-          continue;
-        }
-        if (staticCatalogs.has(lang)) {
-          applyJob(job, original, original);
-          continue;
-        }
+        const found = lookup(lang, normalized);
+        if (found !== undefined) { applyJob(job, original, preserveWhitespace(original, found)); continue; }
+        if (!worthTranslating(normalized) || serverOff.has(lang)) continue;
         if (!grouped.has(normalized)) grouped.set(normalized, []);
         grouped.get(normalized).push(job);
       }
       const originals = [...grouped.keys()];
-      let failed = false;
-      for (let i = 0; i < originals.length; i += BATCH_SIZE * CONCURRENT_BATCHES) {
+      for (let i = 0; i < originals.length && !serverOff.has(lang); i += BATCH_SIZE * CONCURRENT_BATCHES) {
         if (lang !== language() || languageRun !== run) return;
         const chunks = [];
         for (let start = i; start < Math.min(i + BATCH_SIZE * CONCURRENT_BATCHES, originals.length); start += BATCH_SIZE) {
           chunks.push(originals.slice(start, start + BATCH_SIZE));
         }
         const results = await Promise.allSettled(chunks.map((texts) => translateBatch(lang, texts)));
-        for (let index = 0; index < results.length; index++) {
-          const result = results[index];
-          if (result.status === 'rejected') { failed = true; continue; }
+        let failed = false;
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') { failed = true; return; }
           chunks[index].forEach((original, itemIndex) => {
             const translated = result.value[itemIndex];
             translationCache.set(`${lang}\0${original}`, translated);
-            if (translationCache.size > 5000) translationCache.delete(translationCache.keys().next().value);
+            if (translationCache.size > 20000) translationCache.delete(translationCache.keys().next().value);
             for (const job of grouped.get(original)) {
               const jobOriginal = job.original ?? job.read();
               applyJob(job, jobOriginal, preserveWhitespace(jobOriginal, translated));
             }
           });
-        }
-        if (failed) break;
+        });
+        if (failed) break; // offline or server busy: leave the rest in English rather than retrying endlessly
       }
-      if (failed) {
-        if (failedLanguage !== lang) {
-          failedLanguage = lang;
-          window.dispatchEvent(new CustomEvent('translationerror', { detail: new Error('Some text could not be translated. Check that LibreTranslate is still running.') }));
-        }
-      } else failedLanguage = '';
     } finally {
       scheduled = false;
       if (pending.size) schedule(root, language());
@@ -218,4 +259,5 @@ export function resetTranslations(root) {
   }
   queuedText = new WeakSet();
   queuedAttributes = new WeakMap();
+  written = new WeakMap();
 }

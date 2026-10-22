@@ -147,7 +147,7 @@ export async function investment(ctx) {
         <dl class="kv kv--wide">
           <div><dt>Investment ID</dt><dd>${esc(i.ref)}</dd></div><div><dt>Property</dt><dd>${esc(i.property_name)}</dd></div>
           <div><dt>Plan</dt><dd>${esc(i.plan_name)} (${esc(duration(d.plan))})</dd></div><div><dt>Amount</dt><dd>${money(i.amount_usd, { cents: true })}</dd></div>
-          <div><dt>Paid with</dt><dd>${num(i.crypto_amount, 8)} ${esc(i.currency)} on ${esc(netName || i.network)}</dd></div>
+          <div><dt>Paid with</dt><dd><span data-no-translate>${num(i.crypto_amount, 8)} ${esc(i.currency)}</span> on <span data-no-translate>${esc(netName || i.network)}</span></dd></div>
           <div><dt>Transaction hash</dt><dd class="mono">${i.tx_hash ? `<span title="${esc(i.tx_hash)}">${esc(shortHash(i.tx_hash, 12))}</span> <button class="icon-btn icon-btn--sm" data-copy="${esc(i.tx_hash)}" aria-label="Copy hash">${icon('copy')}</button>` : '—'}</dd></div>
           <div><dt>Payment date</dt><dd>${dateTime(d.payments.find((p) => p.status === 'confirmed' && p.kind === 'deposit')?.verified_at)}</dd></div>
           <div><dt>Start date</dt><dd>${date(i.start_date)}</dd></div><div><dt>Maturity date</dt><dd>${date(i.maturity_date)}</dd></div>
@@ -205,7 +205,7 @@ export async function invest(ctx) {
         <p class="muted small">These are the same plans shown on our website. Estimated profits are based on each plan's minimum investment.</p>
         <div data-plans>${Pub.plansTable(planList, { selectedId: st.plan?.id, action: (pl, selected) => `<button type="button" class="btn btn--sm ${selected ? 'btn--gold' : 'btn--ghost'}" data-pick-plan="${pl.id}" aria-pressed="${selected}">${selected ? `${icon('check')} Selected` : 'Select'}</button>` })}</div>
         <h2 class="card__title" id="choose-property">2. Choose a property</h2>
-        <div class="choice-grid">${o.properties.map((p) => `<label class="choice choice--prop"><input type="radio" name="property" value="${p.id}" ${st.property?.id === p.id ? 'checked' : ''}><span class="choice__media">${propertyVisual(p)}</span><span class="choice__body"><strong>${esc(p.name)}</strong><small>${esc(p.city)} · ${esc(TYPE_LABEL[p.type])} · from ${money(p.min_investment)}</small></span></label>`).join('') || empty('No properties are accepting investments', 'Check back soon.')}</div>
+        <div class="choice-grid">${o.properties.map((p) => `<label class="choice choice--prop"><input type="radio" name="property" value="${p.id}" ${st.property?.id === p.id ? 'checked' : ''}><span class="choice__media">${propertyVisual(p)}</span><span class="choice__body"><strong data-no-translate>${esc(p.name)}</strong><small>${esc(p.city)} · ${esc(TYPE_LABEL[p.type])} · from ${money(p.min_investment)}</small></span></label>`).join('') || empty('No properties are accepting investments', 'Check back soon.')}</div>
         <p class="form-error" data-err hidden></p>
         <div class="form__actions"><a class="btn btn--ghost" href="/app">Cancel</a><button class="btn btn--gold" data-next>Continue ${icon('arrow')}</button></div></section>`;
     }
@@ -654,7 +654,7 @@ export async function support(ctx) {
     html: `${head('Support', 'Get help from our team.', '<button class="btn btn--gold" data-new>' + icon('plus') + ' New ticket</button>')}
     <div class="grid grid--dash">
       <section class="card card--table"><header class="card__head"><h2 class="card__title">Your tickets</h2></header>${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Reference</th><th>Subject</th><th>Topic</th><th>Status</th><th>Updated</th></tr></thead><tbody>
-        ${items.map((t) => `<tr><td><a href="/app/support/${t.id}"><strong>${esc(t.ref)}</strong></a></td><td>${esc(t.subject)}</td><td>${esc(sentence(t.category))}</td><td>${badge(t.status, t.status === 'pending' ? 'Replied' : null)}</td><td>${ago(t.updated_at)}</td></tr>`).join('')}</tbody></table></div>` : empty('No tickets yet', 'Open a ticket and our team will reply by email and here.')}</section>
+        ${items.map((t) => `<tr><td><a href="/app/support/${t.id}"><strong>${esc(t.ref)}</strong></a></td><td>${esc(t.subject)}</td><td>${esc(label(t.category))}</td><td>${badge(t.status, t.status === 'pending' ? 'Replied' : null)}</td><td>${ago(t.updated_at)}</td></tr>`).join('')}</tbody></table></div>` : empty('No tickets yet', 'Open a ticket and our team will reply by email and here.')}</section>
       <aside class="card"><h2 class="card__title">Other ways to reach us</h2>
         <div class="contact__item">${icon('mail')}<div><strong>Email</strong><a href="mailto:${esc(s.email || '')}">${esc(s.email || '')}</a></div></div>
         <div class="contact__item">${icon('phone')}<div><strong>Phone</strong><span>${esc(s.phone || '')}</span></div></div>
@@ -687,7 +687,7 @@ export async function ticket(ctx) {
       count = d.messages.length;
       root.querySelector('.thread').innerHTML = d.messages.map(msgHtml).join('');
     },
-    html: `<nav class="crumbs"><a href="/app/support">Support</a>${icon('chevronRight')}<span>${esc(t.ref)}</span></nav>${head(t.subject, `${t.ref} · ${sentence(t.category)}`, badge(t.status, t.status === 'pending' ? 'Replied' : null))}
+    html: `<nav class="crumbs"><a href="/app/support">Support</a>${icon('chevronRight')}<span>${esc(t.ref)}</span></nav>${head(t.subject, `${t.ref} · ${label(t.category)}`, badge(t.status, t.status === 'pending' ? 'Replied' : null))}
     <section class="card"><ol class="thread">${messages.map(msgHtml).join('')}</ol>
     ${t.status !== 'closed' ? `<form class="form" data-f novalidate>${field({ name: 'message', label: 'Reply', type: 'textarea', required: true, rows: 4, attrs: 'minlength="2" maxlength="5000"' })}<p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Send reply</button></div></form>` : '<p class="muted">This ticket is closed.</p>'}</section>`,
     mount(root) {

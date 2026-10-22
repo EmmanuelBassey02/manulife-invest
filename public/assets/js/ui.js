@@ -13,7 +13,17 @@ export const money = (n, opts = {}) => {
 export const num = (n, dp = 0) => (n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: dp }));
 export const crypto = (n, code) => (n == null ? '—' : `${Number(n).toLocaleString('en-US', { maximumFractionDigits: 8 })} ${esc(code)}`);
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const date = (d) => { if (!d) return '—'; const x = new Date(d); return Number.isNaN(x.getTime()) ? '—' : `${String(x.getDate()).padStart(2, '0')} ${MON[x.getMonth()]} ${x.getFullYear()}`; };
+const DATE_LOCALES = { fr: 'fr-FR', es: 'es-ES', pt: 'pt-BR', de: 'de-DE' };
+/** Locale for dates in the language the visitor chose (English keeps "22 Oct 2026"). */
+function dateLocale() { try { return DATE_LOCALES[localStorage.getItem('ei_language')] || null; } catch { return null; } }
+export const date = (d) => {
+  if (!d) return '—';
+  const x = new Date(d);
+  if (Number.isNaN(x.getTime())) return '—';
+  const loc = dateLocale();
+  if (loc) return x.toLocaleDateString(loc, { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${String(x.getDate()).padStart(2, '0')} ${MON[x.getMonth()]} ${x.getFullYear()}`;
+};
 export const dateTime = (d) => { if (!d) return '—'; const x = new Date(d); return Number.isNaN(x.getTime()) ? '—' : `${date(x)}, ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`; };
 export const ago = (d) => {
   if (!d) return '';

@@ -50,9 +50,16 @@ async function brandAndWithdrawalContent(h) {
   }
 }
 
+/** Listings used to be saved as Draft by default, so ones marked "Feature on the homepage" never appeared. Publish those. */
+async function publishFeaturedDrafts(h) {
+  const res = await h.run("UPDATE properties SET status='published', updated_at=? WHERE status='draft' AND featured=1", [now()]);
+  if (res.changes) console.log(`Published ${res.changes} featured propert${res.changes === 1 ? 'y' : 'ies'} that had been saved as Draft.`);
+}
+
 async function runMigrations() {
   const ran = await once('migration.sapronlife_withdrawals', brandAndWithdrawalContent);
   if (ran) console.log('Updated website content to SapronLife Financial Investment and "Withdrawal" wording.');
+  await once('migration.publish_featured_drafts', publishFeaturedDrafts);
 }
 
 module.exports = { runMigrations, rewrite, BRAND };

@@ -28,7 +28,7 @@ module.exports = {
   TRUST_PROXY: env.TRUST_PROXY === '1',
   PAYMENT_WEBHOOK_SECRET: env.PAYMENT_WEBHOOK_SECRET || '',
   CRON_SECRET: env.CRON_SECRET || '',
-  LIBRETRANSLATE_URL: env.LIBRETRANSLATE_URL || 'http://127.0.0.1:5000/translate',
+  LIBRETRANSLATE_URL: env.LIBRETRANSLATE_URL || '',
   LIBRETRANSLATE_API_KEY: env.LIBRETRANSLATE_API_KEY || '',
   RESEND_API_KEY: env.RESEND_API_KEY || '',
   MAIL_FROM: env.MAIL_FROM || 'SapronLife Financial Investment <no-reply@sapronlife.example>',

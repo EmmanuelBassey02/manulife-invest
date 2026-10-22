@@ -79,6 +79,16 @@ CREATE TABLE IF NOT EXISTS payout_wallets (
   UNIQUE (user_id, currency, network)
 );
 
+CREATE TABLE IF NOT EXISTS translations (
+  lang TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  source TEXT NOT NULL,
+  translated TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (lang, source_hash)
+);
+
 CREATE TABLE IF NOT EXISTS kyc_submissions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),

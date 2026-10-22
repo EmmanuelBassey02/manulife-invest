@@ -395,30 +395,38 @@ export async function withdrawals(ctx) {
 }
 
 /* ---------------------------------------------------------------- properties */
-export async function properties() {
+export async function properties(ctx) {
   const { items } = await api.get('/api/admin/properties');
   return {
     title: 'Properties',
     html: `${head('Properties', 'Create, edit and publish property listings.', `<a class="btn btn--gold" href="/admin/properties/new">${icon('plus')} Add property</a>`)}
     <section class="card card--table">${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Property</th><th>Type</th><th>Development</th><th>Listing</th><th class="num">Min.</th><th class="num">Raised</th><th></th></tr></thead><tbody>
       ${items.map((p) => `<tr><td><div class="prop-cell"><span class="prop-cell__img">${propertyVisual(p)}</span><div><a href="/admin/properties/${p.id}"><strong>${esc(p.name)}</strong></a><small class="muted">${esc(p.city)}, ${esc(p.country)}</small></div></div></td><td>${esc(TYPE_LABEL[p.type])}</td><td>${esc(DEV_LABEL[p.dev_status])}</td>
-      <td>${badge(p.status)}${p.accepting ? '' : '<br><small class="muted">Not accepting</small>'}${p.featured ? '<br><small class="muted">Featured</small>' : ''}</td><td class="num">${money(p.min_investment)}</td><td class="num">${money(p.raised, { compact: true })}${p.target_raise ? `<br><small class="muted">of ${money(p.target_raise, { compact: true })}</small>` : ''}</td>
-      <td><a class="btn btn--ghost btn--sm" href="/admin/properties/${p.id}">Edit</a></td></tr>`).join('')}</tbody></table></div>` : empty('No properties yet', 'Add your first property listing.', '<a class="btn btn--gold" href="/admin/properties/new">Add property</a>')}</section>`,
+      <td>${badge(p.status)}${p.status === 'published' ? '<br><small class="muted">On the website</small>' : '<br><small class="muted">Hidden from the website</small>'}${p.featured ? `<br><small class="${p.status === 'published' ? 'muted' : 'text-bad'}">${p.status === 'published' ? 'Featured on homepage' : 'Featured, but not shown until published'}</small>` : ''}${p.accepting ? '' : '<br><small class="muted">Not accepting</small>'}</td><td class="num">${money(p.min_investment)}</td><td class="num">${money(p.raised, { compact: true })}${p.target_raise ? `<br><small class="muted">of ${money(p.target_raise, { compact: true })}</small>` : ''}</td>
+      <td class="nowrap">${p.status !== 'published' ? `<button class="btn btn--gold btn--sm" data-publish="${p.id}">Publish</button> ` : ''}<a class="btn btn--ghost btn--sm" href="/admin/properties/${p.id}">Edit</a></td></tr>`).join('')}</tbody></table></div>` : empty('No properties yet', 'Add your first property listing.', '<a class="btn btn--gold" href="/admin/properties/new">Add property</a>')}</section>`,
+    mount(root) {
+      root.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await api.put(`/api/admin/properties/${b.dataset.publish}`, { status: 'published' }); toast('Property published. It now appears on the website.'); ctx.reload(); }
+        catch (err) { b.disabled = false; toast(err.message, 'bad'); }
+      }));
+    },
   };
 }
 
 export async function propertyEdit(ctx) {
   const isNew = ctx.params.id === 'new';
-  const d = isNew ? { property: { name: '', type: 'residential', city: '', country: 'Nigeria', summary: '', description: '', dev_status: 'planning', status: 'draft', accepting: true, featured: false, min_investment: 1000, target_raise: null, details: {}, highlights: [], risks: '', art_seed: Math.floor(Math.random() * 900) + 1, images: [], image_ids: [] }, documents: [], plans: [] } : await api.get(`/api/admin/properties/${encodeURIComponent(ctx.params.id)}`);
+  const d = isNew ? { property: { name: '', type: 'residential', city: '', country: 'Nigeria', summary: '', description: '', dev_status: 'planning', status: 'published', accepting: true, featured: false, min_investment: 1000, target_raise: null, details: {}, highlights: [], risks: '', art_seed: Math.floor(Math.random() * 900) + 1, images: [], image_ids: [] }, documents: [], plans: [] } : await api.get(`/api/admin/properties/${encodeURIComponent(ctx.params.id)}`);
   const p = d.property;
   return {
     title: isNew ? 'Add property' : p.name,
     html: `<nav class="crumbs"><a href="/admin/properties">Properties</a>${icon('chevronRight')}<span>${isNew ? 'New property' : esc(p.name)}</span></nav>
-    ${head(isNew ? 'Add property' : p.name, isNew ? 'New listings are saved as drafts until you publish them.' : '', !isNew && p.status === 'published' ? `<a class="btn btn--ghost" href="/properties/${esc(p.slug)}" target="_blank">${icon('external')} View live</a>` : '')}
+    ${head(isNew ? 'Add property' : p.name, isNew ? 'Published listings appear on the website straight away. Choose Draft to keep a listing hidden while you prepare it.' : '', !isNew && p.status === 'published' ? `<a class="btn btn--ghost" href="/properties/${esc(p.slug)}" target="_blank">${icon('external')} View live</a>` : '')}
     <div class="grid grid--edit">
       <form class="card form" data-f novalidate>
         <h2 class="card__title">Listing details</h2>
         <div class="form-grid">
+          ${field({ name: 'status', label: 'Listing status', required: true, full: true, value: p.status, hint: 'Only Published listings appear on the website and homepage. Drafts and archived listings are visible only here.', options: [['published', 'Published (shown on the website)'], ['draft', 'Draft (hidden)'], ['archived', 'Archived (hidden)']] })}
           ${field({ name: 'name', label: 'Project name', required: true, full: true, value: p.name, attrs: 'maxlength="120"' })}
           ${field({ name: 'type', label: 'Type', required: true, value: p.type, options: Object.entries(TYPE_LABEL) })}
           ${field({ name: 'dev_status', label: 'Development status', required: true, value: p.dev_status, options: Object.entries(DEV_LABEL) })}
@@ -431,11 +439,10 @@ export async function propertyEdit(ctx) {
           ${field({ name: 'highlights', label: 'Highlights (one per line)', type: 'textarea', full: true, rows: 3, value: (p.highlights || []).join('\n') })}
           ${field({ name: 'details', label: 'Key information (one “Label: value” per line)', type: 'textarea', full: true, rows: 5, value: Object.entries(p.details || {}).map(([k, v]) => `${k}: ${v}`).join('\n') })}
           ${field({ name: 'risks', label: 'Risks & disclosures', type: 'textarea', full: true, rows: 4, value: p.risks || '' })}
-          ${field({ name: 'status', label: 'Listing status', required: true, value: p.status, options: [['draft', 'Draft'], ['published', 'Published'], ['archived', 'Archived']] })}
           ${field({ name: 'art_seed', label: 'Illustration style (1–999)', type: 'number', value: p.art_seed, hint: 'Used when no photos are uploaded.', attrs: 'min="1" max="999"' })}
         </div>
         ${check({ name: 'accepting', label: 'Accepting investments', checked: p.accepting })}
-        ${check({ name: 'featured', label: 'Feature on the homepage', checked: p.featured })}
+        ${check({ name: 'featured', label: 'Feature on the homepage (published listings only)', checked: p.featured })}
         <p class="form-error" hidden></p><div class="form__actions"><a class="btn btn--ghost" href="/admin/properties">Cancel</a><button class="btn btn--gold" type="submit">${isNew ? 'Create property' : 'Save changes'}</button></div>
       </form>
       <div class="stack">
@@ -453,8 +460,13 @@ export async function propertyEdit(ctx) {
         const details = {};
         String(v.details || '').split('\n').forEach((line) => { const i = line.indexOf(':'); if (i > 0) details[line.slice(0, i).trim()] = line.slice(i + 1).trim(); });
         const body = { ...v, details, highlights: String(v.highlights || '').split('\n').map((x) => x.trim()).filter(Boolean), target_raise: v.target_raise || null };
-        if (isNew) { const r = await api.post('/api/admin/properties', body); toast('Property created.'); navigate(`/admin/properties/${r.id}`, { replace: true }); }
-        else { await api.put(`/api/admin/properties/${p.id}`, body); toast('Changes saved.'); ctx.reload(); }
+        if (body.featured && body.status !== 'published') {
+          const publish = await confirmDialog({ title: 'Publish this property too?', message: 'Featured properties only appear on the homepage when they are published. Publish it now so it shows on the website and homepage?', confirm: 'Publish and save', tone: 'gold' });
+          if (publish) body.status = 'published';
+        }
+        const where = body.status !== 'published' ? ' It is hidden from the website until you publish it.' : body.featured ? ' It now appears on the website and homepage.' : ' It now appears on the Properties page.';
+        if (isNew) { const r = await api.post('/api/admin/properties', body); toast(`Property created.${where}`); navigate(`/admin/properties/${r.id}`, { replace: true }); }
+        else { await api.put(`/api/admin/properties/${p.id}`, body); toast(`Changes saved.${where}`); ctx.reload(); }
       });
       root.querySelector('[data-img]')?.addEventListener('change', async (e) => {
         const { done, error } = await uploadMany(e.target.files, { types: ['image/jpeg', 'image/png', 'image/webp'], purpose: 'property_image' }, (file) => api.post(`/api/admin/properties/${p.id}/images`, { file }));
@@ -560,7 +572,7 @@ export async function tickets(ctx) {
     html: `${head('Support requests', 'Messages, enquiries and tickets from investors and visitors.')}
     <nav class="tabs">${tabs.map(([k, l]) => `<a class="tabs__tab" href="/admin/support${k ? `?status=${k}` : ''}" ${(ctx.query.status || '') === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
     <section class="card card--table">${items.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>From</th><th>Subject</th><th>Topic</th><th>Status</th><th>Updated</th></tr></thead><tbody>
-      ${items.map((t) => `<tr><td><a href="/admin/support/${t.id}"><strong>${esc(t.ref)}</strong></a></td><td>${person(t.name, t.email)}</td><td>${esc(t.subject)}${t.property_name ? `<br><small class="muted">${esc(t.property_name)}</small>` : ''}</td><td>${esc(sentence(t.category))}</td><td>${badge(t.status, t.status === 'pending' ? 'Awaiting investor' : null)}</td><td>${ago(t.updated_at)}</td></tr>`).join('')}
+      ${items.map((t) => `<tr><td><a href="/admin/support/${t.id}"><strong>${esc(t.ref)}</strong></a></td><td>${person(t.name, t.email)}</td><td>${esc(t.subject)}${t.property_name ? `<br><small class="muted">${esc(t.property_name)}</small>` : ''}</td><td>${esc(label(t.category))}</td><td>${badge(t.status, t.status === 'pending' ? 'Awaiting investor' : null)}</td><td>${ago(t.updated_at)}</td></tr>`).join('')}
     </tbody></table></div>` : empty('No requests', 'New messages will appear here.')}</section>`,
   };
 }

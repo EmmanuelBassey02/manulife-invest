@@ -11,7 +11,7 @@ export function propertyCard(p, base = '/properties') {
   return `<article class="pcard">
     <a class="pcard__media" href="${base}/${esc(p.slug)}" tabindex="-1" aria-hidden="true">${propertyVisual(p)}${ribbon}</a>
     <div class="pcard__body">
-      <h3 class="pcard__title"><a href="${base}/${esc(p.slug)}">${esc(p.name)}</a></h3>
+      <h3 class="pcard__title" data-no-translate><a href="${base}/${esc(p.slug)}">${esc(p.name)}</a></h3>
       <p class="pcard__meta">${icon('pin')} ${esc(p.city)}, ${esc(p.country)}</p>
       <p class="pcard__meta">${icon('building')} ${esc(TYPE_LABEL[p.type])} · ${esc(DEV_LABEL[p.dev_status])}</p>
       <div class="pcard__foot"><div><small>Starting from</small><strong>${money(p.min_investment)}</strong></div>
@@ -80,7 +80,7 @@ export async function home() {
     <section class="section section--cream">
       <div class="wrap">
         <div class="section__head"><div><p class="kicker">Featured properties</p><h2>Featured properties</h2><p>Each opportunity comes with its documents, risks and plan terms set out before you invest.</p></div><a class="link-arrow" href="/properties">All properties ${icon('arrow')}</a></div>
-        <div class="grid grid--3">${props.items.slice(0, 3).map((p) => propertyCard(p)).join('') || empty('No featured properties yet', 'Check back soon.')}</div>
+        <div class="grid grid--3">${props.items.map((p) => propertyCard(p)).join('') || empty('No featured properties yet', 'Check back soon.')}</div>
       </div>
     </section>
 
@@ -155,7 +155,7 @@ export async function property(ctx, { inApp = false } = {}) {
   const { property: p, plans, documents } = await api.get(`/api/public/properties/${encodeURIComponent(ctx.params.slug)}`);
   const pct = p.target_raise ? Math.min(100, Math.round((p.raised / p.target_raise) * 100)) : null;
   const gallery = Array.from({ length: Math.max(5, p.images.length) }, (_, i) => i).slice(0, Math.max(5, p.images.length));
-  const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><a href="${inApp ? '/app/properties' : '/properties'}">Properties</a>${icon('chevronRight')}<span>${esc(p.name)}</span></nav>`;
+  const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><a href="${inApp ? '/app/properties' : '/properties'}">Properties</a>${icon('chevronRight')}<span data-no-translate>${esc(p.name)}</span></nav>`;
   const enquire = state.user ? '/app/support' : null;
   const html = `
   <section class="section section--tight"><div class="wrap">
@@ -167,7 +167,7 @@ export async function property(ctx, { inApp = false } = {}) {
       </div>
       <aside class="pdetail__info">
         ${p.accepting ? '<span class="badge badge--ok">Accepting investments</span>' : '<span class="badge badge--muted">Not accepting investments</span>'}
-        <h1>${esc(p.name)}</h1>
+        <h1 data-no-translate>${esc(p.name)}</h1>
         <p class="pdetail__loc">${icon('pin')} ${esc(p.city)}, ${esc(p.country)}</p>
         <p>${esc(p.summary || '')}</p>
         <dl class="facts">
