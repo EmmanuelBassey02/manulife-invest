@@ -556,7 +556,7 @@ export async function kyc(ctx) {
       ${field({ name: 'details', label: 'Tell us more about your source of funds', type: 'textarea', full: true, value: sf.details || '', rows: 3, attrs: 'maxlength="1000"' })}
       </div>
       ${check({ name: 'pep', label: 'I am a politically exposed person (PEP), or a close relative or associate of one', checked: !!su.pep })}
-      ${check({ name: 'understands_risk', required: true, label: 'I understand that real estate investments carry risk and I could lose some or all of my money', checked: !!su.understands_risk })}
+
       <p class="form-error" hidden></p><div class="form__actions"><button class="btn btn--gold" type="submit">Continue ${icon('arrow')}</button></div></form>`,
     `<h2 class="card__title">Review and submit</h2><ul class="checklist">${['Personal information', 'Identity document', 'Proof of address', 'Selfie', 'Source of funds'].map((l, i) => `<li class="${done[i] ? 'is-done' : ''}">${icon(done[i] ? 'check' : 'x')}<span>${l}</span>${done[i] ? '' : `<a href="/app/kyc?step=${i}">Complete</a>`}</li>`).join('')}</ul>
       <p class="muted">By submitting, you confirm the information is accurate and consent to us verifying it under our <a href="/legal/kyc_aml" target="_blank">KYC/AML Policy</a> and <a href="/legal/privacy" target="_blank">Privacy Policy</a>.</p>

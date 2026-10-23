@@ -353,9 +353,9 @@ function register(r) {
       annual_income: { type: 'enum', required: true, values: ['under_25k', '25k_100k', '100k_250k', '250k_1m', 'over_1m'], label: 'annual income' },
       experience: { type: 'enum', required: true, values: ['none', 'some', 'experienced'], label: 'investment experience' },
       risk_tolerance: { type: 'enum', required: true, values: ['low', 'medium', 'high'], label: 'risk tolerance' },
-      pep: { type: 'bool' }, understands_risk: { type: 'bool' },
+      pep: { type: 'bool' },
     });
-    if (!b.understands_risk) throw new HttpError(422, 'Check the highlighted fields.', { understands_risk: 'Confirm you understand you could lose some or all of your investment.' });
+
     await db.run('UPDATE kyc_submissions SET source_of_funds=?, suitability=?, updated_at=? WHERE id=?', [
       JSON.stringify({ source: b.source, details: b.details || '' }),
       JSON.stringify({ annual_income: b.annual_income, experience: b.experience, risk_tolerance: b.risk_tolerance, pep: !!b.pep, understands_risk: true }), now(), k.id,
