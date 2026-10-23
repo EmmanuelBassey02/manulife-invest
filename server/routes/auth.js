@@ -9,7 +9,7 @@ const { sendMail, audit, notify } = require('../lib/services');
 async function sendVerification(user) {
   const token = await A.issueToken(user.id, 'verify_email', 48);
   await sendMail(user.email, 'Verify your email address',
-    `Hi ${user.first_name},\n\nConfirm your email address to activate your SapronLife Financial Investment account:\n${config.APP_URL}/verify-email?token=${token}\n\nThis link expires in 48 hours. If you did not create an account, ignore this email.`);
+    `Hi ${user.first_name},\n\nConfirm your email address to activate your Manulife Financial Investment account:\n${config.APP_URL}/verify-email?token=${token}\n\nThis link expires in 48 hours. If you did not create an account, ignore this email.`);
 }
 
 function register(r) {
@@ -42,7 +42,7 @@ function register(r) {
     });
     const user = await db.get('SELECT * FROM users WHERE id=?', [id]);
     await audit({ ...ctx, user }, 'user.register', 'user', id, null, { email: b.email });
-    await notify(id, { type: 'account', title: 'Welcome to SapronLife Financial Investment', body: 'Complete identity verification to start investing.', link: '/app', email: false });
+    await notify(id, { type: 'account', title: 'Welcome to Manulife Financial Investment', body: 'Complete identity verification to start investing.', link: '/app', email: false });
     return { ok: true };
   });
 

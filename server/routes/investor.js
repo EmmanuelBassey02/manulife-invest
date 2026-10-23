@@ -49,7 +49,7 @@ function printable(title, rows, foot) {
 h1{font-weight:400;font-size:28px;margin:0 0 4px}.brand{margin-bottom:32px}.brand img{width:200px;height:auto;display:block}table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px}
 td{padding:10px 0;border-bottom:1px solid #eee;vertical-align:top}td:first-child{color:#6b7685;width:40%}.foot{margin-top:32px;font:12px/1.6 Arial,sans-serif;color:#6b7685}
 @media print{body{background:#fff;padding:0}.doc{border:0}button{display:none}}button{margin:24px auto 0;display:block;padding:10px 20px;background:#16834a;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}</style></head>
-<body><div class="doc"><div class="brand"><img src="/assets/img/logo.png" alt="SapronLife Financial Investment"></div><h1>${esc(title)}</h1><p style="color:#6b7685;font-family:Arial,sans-serif;font-size:13px">Issued ${esc(E.fmtDate(now()))}</p>
+<body><div class="doc"><div class="brand"><img src="/assets/img/logo.png" alt="Manulife Financial Investment"></div><h1>${esc(title)}</h1><p style="color:#6b7685;font-family:Arial,sans-serif;font-size:13px">Issued ${esc(E.fmtDate(now()))}</p>
 <table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><p class="foot">${esc(foot)}</p></div><button type="button" data-print>Print or save as PDF</button><script src="/assets/js/print.js"></script></body></html>`;
 }
 
@@ -242,7 +242,7 @@ function register(r) {
       ['Transaction hash', i.tx_hash], ['Start date', E.fmtDate(i.start_date)], ['Maturity date', E.fmtDate(i.maturity_date)],
       ['Return terms', terms.approved ? `${terms.rate}% ${{ fixed_annual: 'per year', fixed_weekly: 'per week' }[terms.type] || 'total'}` : (terms.note || 'Pending legal approval')],
       ['Status', E.LABELS[i.status]],
-    ], 'This certificate records your participation as held in SapronLife Financial Investment records. It is subject to the Investment Terms, Investor Agreement and Risk Disclosure you accepted.'), 'text/html; charset=utf-8');
+    ], 'This certificate records your participation as held in Manulife Financial Investment records. It is subject to the Investment Terms, Investor Agreement and Risk Disclosure you accepted.'), 'text/html; charset=utf-8');
   });
 
   r.get('/api/me/payments/:id/receipt', async (ctx) => {

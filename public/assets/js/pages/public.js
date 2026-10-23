@@ -300,7 +300,7 @@ export async function about() {
   const s = site().site || {};
   return {
     title: 'About us',
-    html: `${pageHead(`About ${site().site?.brand || 'SapronLife Financial Investment'}`, c.intro || '')}
+    html: `${pageHead(`About ${site().site?.brand || 'Manulife Financial Investment'}`, c.intro || '')}
     <section class="section section--tight"><div class="wrap">
       <div class="about-grid">
         <div class="prose"><h2>Our story</h2><p>${esc(c.history || '')}</p><h2>Our mission</h2><p>${esc(c.mission || '')}</p><h2>How we work</h2><p>${esc(c.model || '')}</p></div>

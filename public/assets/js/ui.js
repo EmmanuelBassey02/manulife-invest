@@ -130,8 +130,8 @@ const P = {
 };
 export const icon = (name, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
 
-export const BRAND_NAME = 'SapronLife Financial Investment';
-export const BRAND_MARK = '<img class="brand__logo" src="/assets/img/logo.png" alt="SapronLife Financial Investment" width="640" height="175">';
+export const BRAND_NAME = 'Manulife Financial Investment';
+export const BRAND_MARK = '<img class="brand__logo" src="/assets/img/logo.png" alt="Manulife Financial Investment" width="640" height="175">';
 
 /* ------------------------------------------------------------------- toast */
 export function toast(message, tone = 'ok') {

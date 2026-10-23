@@ -4,14 +4,18 @@
 const { db } = require('./index');
 const { now, parseJSON } = require('../lib/util');
 
-const BRAND = 'SapronLife Financial Investment';
+const BRAND = 'Manulife Financial Investment';
 
 // Order matters: longer phrases first.
 const TEXT_REPLACEMENTS = [
+  [/SapronLife Financial Investment Services/g, BRAND],
+  [/SapronLife Financial Investment/g, BRAND],
+  [/SapronLife [Ff]inancial [Ss]ervices/g, BRAND],
+  [/SapronLife/g, 'Manulife'],
+  [/sapronlife\.example/g, 'manulife.example'],
   [/Manulife Financial Investment Services/g, BRAND],
   [/Manulife [Ff]inancial [Ss]ervices/g, BRAND],
-  [/Manulife/g, 'SapronLife'],
-  [/EstateInvest/g, 'SapronLife'],
+  [/EstateInvest/g, 'Manulife'],
   [/\bRedemptions\b/g, 'Withdrawals'],
   [/(?<![/\w-])redemptions\b/g, 'withdrawals'], // skip URLs such as /legal/redemption
   [/\bRedemption\b/g, 'Withdrawal'],
@@ -37,7 +41,7 @@ async function once(marker, fn) {
   });
 }
 
-/** Renames the company to SapronLife Financial Investment and "Redemption" to "Withdrawal" in website content. */
+/** Renames the company to Manulife Financial Investment and "Redemption" to "Withdrawal" in website content. */
 async function brandAndWithdrawalContent(h) {
   const rows = await h.all('SELECT key, value FROM cms');
   for (const row of rows) {
@@ -50,6 +54,27 @@ async function brandAndWithdrawalContent(h) {
   }
 }
 
+/** Ensures any existing content with SapronLife is rebranded to Manulife. */
+async function brandManulifeContent(h) {
+  const rows = await h.all('SELECT key, value FROM cms');
+  for (const row of rows) {
+    const before = parseJSON(row.value, null);
+    if (before == null) continue;
+    let after = rewrite(before);
+    if (row.key === 'site' && after && typeof after === 'object' && !Array.isArray(after)) after = { ...after, brand: BRAND };
+    const next = JSON.stringify(after);
+    if (next !== row.value) await h.run('UPDATE cms SET value=?, updated_at=? WHERE key=?', [next, now(), row.key]);
+  }
+  const props = await h.all('SELECT id, details FROM properties');
+  for (const p of props) {
+    const det = parseJSON(p.details, null);
+    if (det && det.Developer && det.Developer.includes('SapronLife')) {
+      det.Developer = det.Developer.replace(/SapronLife/g, 'Manulife');
+      await h.run('UPDATE properties SET details=?, updated_at=? WHERE id=?', [JSON.stringify(det), now(), p.id]);
+    }
+  }
+}
+
 /** Listings used to be saved as Draft by default, so ones marked "Feature on the homepage" never appeared. Publish those. */
 async function publishFeaturedDrafts(h) {
   const res = await h.run("UPDATE properties SET status='published', updated_at=? WHERE status='draft' AND featured=1", [now()]);
@@ -57,8 +82,9 @@ async function publishFeaturedDrafts(h) {
 }
 
 async function runMigrations() {
-  const ran = await once('migration.sapronlife_withdrawals', brandAndWithdrawalContent);
-  if (ran) console.log('Updated website content to SapronLife Financial Investment and "Withdrawal" wording.');
+  await once('migration.sapronlife_withdrawals', brandAndWithdrawalContent);
+  const ran = await once('migration.manulife_brand', brandManulifeContent);
+  if (ran) console.log('Updated website content to Manulife Financial Investment.');
   await once('migration.publish_featured_drafts', publishFeaturedDrafts);
 }
 

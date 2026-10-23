@@ -1,4 +1,4 @@
-# SapronLife Financial Investment — Real Estate Investment Platform
+# Manulife Financial Investment — Real Estate Investment Platform
 
 A complete, responsive web application built from the PRD: public website, investor portal and admin dashboard, with cryptocurrency-only payments (USDT, BTC, ETH, TON).
 
@@ -148,9 +148,9 @@ scripts/              reset-db, export-pg-schema
 
 Native mobile apps, advanced biometric KYC, referrals, multilingual support, advanced analytics, investor messaging, tax documents, property marketplace, additional blockchains, advanced compliance monitoring.
 
-## Changes in this version (SapronLife)
+## Changes in this version (Manulife)
 
-- Company name and logo changed to **SapronLife Financial Investment**. On first start, existing website content in the database (company name, hero text, "Redemption" wording) is updated once; later edits made in Website Content are never overwritten.
+- Company name and logo changed to **Manulife Financial Investment**. On first start, existing website content in the database (company name, hero text, "Redemption" wording) is updated once; later edits made in Website Content are never overwritten.
 - "Redemption" is now **"Withdrawal"** everywhere users see it. Old links (`/app/redemptions`, `/admin/redemptions`) redirect to `/app/withdrawals` and `/admin/withdrawals`. The database table, API paths and admin permission key keep the internal name `redemptions`, so existing data and admin roles keep working. New withdrawal references start with `WDR-`; earlier ones keep `RED-`.
 - **Withdrawals page**: a Withdraw button for every matured investment. The payout defaults to the cryptocurrency and network the investor paid with, and to their saved wallet for it. Investors can save one payout wallet per cryptocurrency and network (password required; they're emailed when it changes). Addresses are checked against the network format (TRC20, ERC20, BTC, TON) before a request is accepted.
 - **KYC uploads fixed**: uploads no longer go from the browser straight to Vercel Blob (the site's security policy blocked that request and the Blob SDK retried it for many minutes, so the spinner never stopped). Every upload now has a time limit and a clear error message.

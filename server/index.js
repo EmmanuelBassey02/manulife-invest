@@ -132,7 +132,7 @@ async function start() {
   server.headersTimeout = 30000;
   server.requestTimeout = 60000;
   await new Promise((resolve) => server.listen(config.PORT, resolve));
-  console.log(`SapronLife Financial Investment running at ${config.APP_URL} (${db.kind})`);
+  console.log(`Manulife Financial Investment running at ${config.APP_URL} (${db.kind})`);
   const runTick = () => engine.tick().catch((e) => console.error('[scheduler]', e));
   runTick();
   setInterval(runTick, 60000).unref();

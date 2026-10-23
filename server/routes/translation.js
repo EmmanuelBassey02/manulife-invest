@@ -54,7 +54,7 @@ async function contentCorpus(userId, fresh = false) {
     ]);
     for (const list of rows) for (const row of list) parts.push(Object.values(row).filter(Boolean).join('\n'));
     // Property names and the brand are proper names: they are shown as written.
-    const names = new Set(['SapronLife', 'SapronLife Financial Investment', ...rows[0].map((p) => p.name)]);
+    const names = new Set(['Manulife', 'Manulife Financial Investment', ...rows[0].map((p) => p.name)]);
     corpus = { text: parts.join('\n'), names, at: Date.now() };
   }
   let text = corpus.text;

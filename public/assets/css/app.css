@@ -1,5 +1,5 @@
 /* =========================================================================
-   SapronLife Financial Investment — green theme
+   Manulife Financial Investment — green theme
    Display: Playfair Display · UI: Manrope
    ========================================================================= */
 :root {
@@ -1067,7 +1067,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .plan-cell__txt small { display: block; max-width: 26ch; white-space: normal; font-size: .76rem; font-weight: 500; line-height: 1.35; color: var(--muted); }
 
 /* =====================================================================
-   SapronLife additions: withdrawals, payout wallets, plan selection, phone layouts
+   Manulife additions: withdrawals, payout wallets, plan selection, phone layouts
    ===================================================================== */
 .td-label { display: none; }
 .stepper__caption { display: none; }

@@ -1,4 +1,4 @@
-export default function SapronLifePage() {
+export default function ManulifePage() {
   return (
     <div id="app" data-layout="">
       <div className="loading" role="status">

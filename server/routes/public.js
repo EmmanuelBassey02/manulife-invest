@@ -131,7 +131,7 @@ function register(r) {
     });
     const ref = await assignRef(db, 'tickets', 'SUP', id, 5000);
     await insert(db, 'ticket_messages', { ticket_id: id, author_id: ctx.user ? ctx.user.id : null, author_type: ctx.user ? 'investor' : 'guest', body: b.message, created_at: t });
-    await sendMail(b.email, `We received your message (${ref})`, `Hi ${b.name},\n\nThanks for getting in touch. Your reference is ${ref}. Our team replies within one business day.\n\nSapronLife Financial Investment`);
+    await sendMail(b.email, `We received your message (${ref})`, `Hi ${b.name},\n\nThanks for getting in touch. Your reference is ${ref}. Our team replies within one business day.\n\nManulife Financial Investment`);
     await notifyAdmins(`New ${b.property_id ? 'property enquiry' : 'message'} ${ref}`, b.subject, `/admin/support/${id}`);
     return { ok: true, ref };
   });

@@ -100,7 +100,7 @@ function register(r) {
     if (b.status === 'suspended') await db.run('UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL', [now(), u.id]);
     await S.audit(ctx, `investor.${b.status === 'active' ? 'activate' : 'suspend'}`, 'user', u.id, { status: u.status }, { status: b.status, reason: b.reason });
     await S.sendMail(u.email, b.status === 'active' ? 'Your account is active' : 'Your account has been suspended',
-      `Hi ${u.first_name},\n\n${b.status === 'active' ? 'Your SapronLife Financial Investment account has been reactivated.' : `Your SapronLife Financial Investment account has been suspended. Reason: ${b.reason}\n\nContact support if you have questions.`}`);
+      `Hi ${u.first_name},\n\n${b.status === 'active' ? 'Your Manulife Financial Investment account has been reactivated.' : `Your Manulife Financial Investment account has been suspended. Reason: ${b.reason}\n\nContact support if you have questions.`}`);
     return { ok: true };
   });
 
@@ -511,7 +511,7 @@ function register(r) {
     await insert(db, 'ticket_messages', { ticket_id: t.id, author_id: ctx.user.id, author_type: 'admin', body: b.message, created_at: now() });
     await db.run("UPDATE tickets SET status='pending', updated_at=? WHERE id=?", [now(), t.id]);
     if (t.user_id) await S.notify(t.user_id, { type: 'support', title: `Reply to ${t.ref}`, body: b.message.slice(0, 300), link: `/app/support/${t.id}` });
-    else await S.sendMail(t.email, `Re: ${t.subject} (${t.ref})`, `Hi ${t.name},\n\n${b.message}\n\nSapronLife Financial Investment Support`);
+    else await S.sendMail(t.email, `Re: ${t.subject} (${t.ref})`, `Hi ${t.name},\n\n${b.message}\n\nManulife Financial Investment Support`);
     await S.audit(ctx, 'ticket.reply', 'ticket', t.id);
     return { ok: true };
   });

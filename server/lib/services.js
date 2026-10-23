@@ -100,7 +100,7 @@ async function sendMail(to, subject, text) {
 function mailHtml(subject, text) {
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const body = esc(text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" style="color:#16834a">$1</a>').replace(/\n/g, '<br>');
-  return `<div style="background:#f1f7f3;padding:32px;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto;background:#fff;border-radius:10px;overflow:hidden"><div style="background:#123825;color:#ffffff;padding:20px 28px;font-size:20px;font-weight:700;font-family:Arial,sans-serif">SapronLife Financial Investment</div><div style="padding:28px;color:#1d2735;line-height:1.6"><h2 style="font-family:Georgia,serif;margin-top:0">${esc(subject)}</h2>${body}</div></div></div>`;
+  return `<div style="background:#f1f7f3;padding:32px;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto;background:#fff;border-radius:10px;overflow:hidden"><div style="background:#123825;color:#ffffff;padding:20px 28px;font-size:20px;font-weight:700;font-family:Arial,sans-serif">Manulife Financial Investment</div><div style="padding:28px;color:#1d2735;line-height:1.6"><h2 style="font-family:Georgia,serif;margin-top:0">${esc(subject)}</h2>${body}</div></div></div>`;
 }
 
 /* ------------------------------------------------------------- notifications */
@@ -111,7 +111,7 @@ async function notify(userId, { type, title, body, link, email = true }) {
     const u = await db.get('SELECT email, first_name FROM users WHERE id=?', [userId]);
     if (u) {
       const url = link ? `\n\nView it here: ${config.APP_URL}${link}` : '';
-      await sendMail(u.email, title, `Hi ${u.first_name},\n\n${body || title}${url}\n\nSapronLife Financial Investment`);
+      await sendMail(u.email, title, `Hi ${u.first_name},\n\n${body || title}${url}\n\nManulife Financial Investment`);
     }
   }
 }

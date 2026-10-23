@@ -677,7 +677,7 @@ export async function support(ctx) {
 
 export async function ticket(ctx) {
   const { ticket: t, messages } = await api.get(`/api/me/tickets/${encodeURIComponent(ctx.params.id)}`);
-  const msgHtml = (m) => `<li class="thread__msg ${m.author_type === 'admin' ? 'thread__msg--staff' : ''}"><header><strong>${m.author_type === 'admin' ? 'SapronLife Support' : 'You'}</strong><small>${dateTime(m.created_at)}</small></header><p>${esc(m.body).replace(/\n/g, '<br>')}</p></li>`;
+  const msgHtml = (m) => `<li class="thread__msg ${m.author_type === 'admin' ? 'thread__msg--staff' : ''}"><header><strong>${m.author_type === 'admin' ? 'Manulife Support' : 'You'}</strong><small>${dateTime(m.created_at)}</small></header><p>${esc(m.body).replace(/\n/g, '<br>')}</p></li>`;
   let count = messages.length;
   return {
     title: t.ref,
